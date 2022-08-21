@@ -1,0 +1,19 @@
+{
+  "type": "module",
+  "name": "tachyon",
+  "version": "1.0.2",
+  "dependencies": {
+    "bun-utilities": "^0.2.1",
+    "rpxlib": "^0.3.0",
+    "yaml": "^2.1.1"
+  },
+  "devDependencies": {
+    "bun-types": "^0.1.8"
+  },
+  "scripts": {
+    "start": "echo no script"
+  },
+  "bin": {
+    "tachyon": "./tachyon.sh"
+  }
+}

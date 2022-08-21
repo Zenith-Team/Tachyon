@@ -8,11 +8,11 @@ try {
             await import('./compile');
             process.exit();
         case 'patch':
-            //await import('./patch');
-            console.error('Patch command not implemented yet.');
+            await import('./patch');
             process.exit();
     }
 } catch (err) {
+    //? Uncomment line below for debugging
     //throw err;
     console.error('Something has gone catastrophically wrong: ' + (<Error>err).message);
     process.exit(1);

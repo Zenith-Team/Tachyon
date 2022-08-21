@@ -22,7 +22,7 @@ export function WindowsPath(path: string) {
 
 /**
  * Convert absolute Windows path to WSL path, if possible. Otherwise return the path unchanged.
- * 
+ *
  * Unconditionally changes all backslashes to forward slashes, if any.
  */
 export function UnixPath(path: string) {

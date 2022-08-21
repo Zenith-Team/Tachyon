@@ -1,4 +1,5 @@
 ﻿import fs from 'fs';
+import path from 'path';
 import yamlLib from 'yaml';
 import {
     BranchHook, FuncptrHook, Hook, HookYAML, MultiNopHook, NopHook, PatchHook, ReturnHook, ReturnValueHook
@@ -10,9 +11,9 @@ interface ModuleYAML {
 }
 
 export class Module {
-    constructor(path: string) {
+    constructor(yamlPath: string) {
         try {
-            const yaml: ModuleYAML = yamlLib.parse(fs.readFileSync(path, 'utf8'));
+            const yaml: ModuleYAML = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8'));
 
             for (const file of yaml.Files) {
                 if      (file.endsWith('.cpp')) this.cppFiles.push(file);
@@ -21,6 +22,12 @@ export class Module {
             }
 
             for (const hook of yaml.Hooks) {
+                if (Number.isSafeInteger(hook.addr)) {
+                    console.error(
+                        `Invalid address for hook #${yaml.Hooks.indexOf(hook) + 1} of type ${hook.type} in module ${path.basename(yamlPath, '.yaml')}`
+                    );
+                    process.exit();
+                }
                 switch (hook.type) {
                     case 'patch':       this.hooks.push(new PatchHook(hook)); break;
                     case 'nop':         this.hooks.push(new NopHook(hook)); break;
@@ -29,11 +36,11 @@ export class Module {
                     case 'return':      this.hooks.push(new ReturnHook(hook)); break;
                     case 'branch':      this.hooks.push(new BranchHook(hook)); break;
                     case 'funcptr':     this.hooks.push(new FuncptrHook(hook)); break;
-                    default: console.error('Unknown hook:', hook.type);
+                    default: console.error('Unknown hook type:', hook.type);
                 }
             }
         } catch {
-            console.error('Invalid module:', path);
+            console.error('Invalid module:', yamlPath);
         }
     }
 

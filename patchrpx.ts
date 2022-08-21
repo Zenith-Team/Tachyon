@@ -1,10 +1,19 @@
 import {
-    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection
+    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress
 } from 'rpxlib';
 import { u32, s32 } from './utils';
 import { Patch } from './hooks';
 
-export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, symsAddr: u32, textAddr: u32, dataAddr: u32) {
+export interface PatchFile {
+    patches: Patch[],
+    addrs: {
+        syms: u32,
+        text: u32,
+        data: u32
+    }
+}
+
+export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
     interface SectionMap {
         text: Section, rodata: Section, data: Section, bss: NoBitsSection,
         symtab: SymbolSection, strtab: StringSection,
@@ -41,11 +50,11 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
             case '.rela.data': sourceRPXSections.reladata = section as RelocationSection; break;
         }
     }
-    
+
     sourceRPXSections.text.nameOffset = destRPX.shstrSection.strings.add(`.text.${brand}`);
     sourceRPXSections.text.flags = rpxSections.text.flags;
     destRPX.pushSection(sourceRPXSections.text);
-    
+
     if (sourceRPXSections.rodata) {
         sourceRPXSections.rodata.nameOffset = destRPX.shstrSection.strings.add(`.rodata.${brand}`);
         sourceRPXSections.rodata.flags = rpxSections.rodata.flags;
@@ -79,14 +88,14 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
     if (sourceRPXSections.symtab) {
         sourceRPXSections.symtab.nameOffset = destRPX.shstrSection.strings.add(`.symtab.${brand}`);
         sourceRPXSections.symtab.flags = rpxSections.symtab.flags;
-        sourceRPXSections.symtab.addr = Util.roundUp(symsAddr, +sourceRPXSections.symtab.addrAlign);
+        sourceRPXSections.symtab.addr = Util.roundUp(addrs.syms, +sourceRPXSections.symtab.addrAlign);
         destRPX.pushSection(sourceRPXSections.symtab);
     }
     if (sourceRPXSections.strtab) {
         sourceRPXSections.strtab.nameOffset = destRPX.shstrSection.strings.add(`.strtab.${brand}`);
         sourceRPXSections.strtab.flags = rpxSections.strtab.flags;
         sourceRPXSections.strtab.addr = Util.roundUp(
-            symsAddr + (sourceRPXSections.symtab ? +sourceRPXSections.symtab.size : 0),
+            addrs.syms + (sourceRPXSections.symtab ? +sourceRPXSections.symtab.size : 0),
             +sourceRPXSections.strtab.addrAlign
         );
         destRPX.pushSection(sourceRPXSections.strtab);
@@ -100,14 +109,14 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
     for (const patch of patches) {
         let targetSection: Section;
         let targetRelocSection: RelocationSection;
-    
+
         const address: u32 = patch.address;
         const data: string = patch.data;
-    
-        if (rpxSections.text.addr <= address && address < textAddr) {
+
+        if (rpxSections.text.addr <= address && address < addrs.text) {
             targetSection = rpxSections.text;
             targetRelocSection = rpxSections.relatext;
-        } else if (Math.min(+rpxSections.rodata.addr, +rpxSections.data.addr, +rpxSections.bss.addr) <= address && address < dataAddr) {
+        } else if (Math.min(+rpxSections.rodata.addr, +rpxSections.data.addr) <= address && address < addrs.data) {
             if (rpxSections.rodata.addr <= address && address < (<number>rpxSections.rodata.addr + <number>rpxSections.rodata.size)) {
                 targetSection = rpxSections.rodata;
                 targetRelocSection = rpxSections.relarodata;
@@ -115,19 +124,18 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
                 targetSection = rpxSections.data;
                 targetRelocSection = rpxSections.reladata;
             } else {
-                console.warn(`Address 0x${address.toString(16).toUpperCase().padStart(8, '0')} is out of range. (1)`);
+                console.warn(
+                    `Patch of data "${data}" at address 0x${
+                        address.toString(16).toUpperCase().padStart(8, '0')
+                    } is within the data sections bounds but outside all known patchable data sections (.data & .rodata)`
+                );
                 continue;
             }
         } else {
-            console.warn(`Address 0x${address.toString(16).toUpperCase().padStart(8, '0')} is out of range. (2)`);
+            console.warn(`Patch of data "${data}" at address 0x${address.toString(16).toUpperCase().padStart(8, '0')} is out of bounds.`);
             continue;
         }
-    
-        function getUint32At(buf: Uint8Array, at: number): number {
-            const v = buf[at] << 24 | buf[at+1] << 16 | buf[at+2] << 8 | buf[at+3];
-            return v >>> 0;
-        }
-    
+
         const relocSize = +targetRelocSection.entSize;
         const relocData = targetRelocSection.data;
         let offsets: number[] = [];
@@ -135,7 +143,8 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         let high: s32 = relocData.byteLength / (<number>targetRelocSection.entSize) - 1;
         while (low <= high) {
             const mid: s32 = ~~((low + high) / 2);
-            const val: u32 = getUint32At(relocData, mid * relocSize);
+            const at: number = mid * relocSize;
+            const val: u32 = (relocData[at] << 24 | relocData[at+1] << 16 | relocData[at+2] << 8 | relocData[at+3]) >>> 0;
             if (val < address) low = mid + 1;
             else if (val > address + 4) high = mid - 1;
             else {
@@ -152,19 +161,19 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         }
         sink.write(relocData.subarray(start));
         targetRelocSection.data = sink.end() as Uint8Array;
-    
+
         if (data.length % 2) {
             console.error(`Data of patch at ${address} of section ${targetSection.name} is not byte aligned: ${data}`);
             process.exit();
         }
-        
+
         const dataBytes = Buffer.from(data, 'hex');
         for (let i = 0; i < dataBytes.byteLength; i++) {
             targetSection.data![(address - <number>targetSection.addr) + i] = dataBytes[i];
         }
     }
 
-    destRPX.shstrSection.addr = destRPX.addressRanges.free.find(([start]) => start >= 0xC0000000)![0];
+    destRPX.shstrSection.addr = destRPX.addressRanges.free.find(([start]) => start >= LoadBaseAddress)![0];
     destRPX.fileinfoSection.adjustFileInfoSizes();
     // CEMU subtracts 0x90 from this value for some random reason (?)
     (<number>destRPX.fileinfoSection.fileinfo.loadSize) += 0x90;

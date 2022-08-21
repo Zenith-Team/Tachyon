@@ -1,11 +1,12 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 import yamlLib from 'yaml';
 import { Patch } from './hooks';
 import { Module } from './module';
 import { SymbolMap } from './symbolmap';
+import { WindowsPath } from './utils';
 import syslib from './syslib';
-import { WindowsPath } from './utils.js';
 
 interface ProjectYAML {
     Name: string;
@@ -89,9 +90,9 @@ export class Project {
 
         linkerDirective.push('MEMORY {'
                            , '\ttext : origin = 0x' + map.converter.text.toString(16).toUpperCase()
-                           + ', length = 0x' + (0x10000000 - map.converter.text).toString(16).toUpperCase()
+                           + ', length = 0x' + (DataBaseAddress - map.converter.text).toString(16).toUpperCase()
                            , '\tdata : origin = 0x' + map.converter.data.toString(16).toUpperCase()
-                           + ', length = 0x' + (0xC0000000 - map.converter.data).toString(16).toUpperCase()
+                           + ', length = 0x' + (LoadBaseAddress - map.converter.data).toString(16).toUpperCase()
                            , '}'
                            , '\nOPTION("-append")'
                            , '\nSECTIONS {'

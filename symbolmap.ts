@@ -111,7 +111,6 @@ export class SymbolMap {
 
         for (const symbol of symbols) {
             symbol.address = this.converter.convert(symbol.address!);
-            
             this.convertedLines.push('\t' + symbol.name + ' = 0x' + symbol.address!.toString(16).toUpperCase() + ';');
             this.symbols.push({ name: symbol.name!, address: symbol.address! });
         }

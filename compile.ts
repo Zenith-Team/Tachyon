@@ -5,7 +5,7 @@ import { SymbolMap } from './symbolmap';
 import { Project } from './project';
 import { UnixPath, ResolveDrive, WindowsPath } from './utils';
 import { RPL, WSLSafePath } from 'rpxlib';
-import { patchRPX } from './patchrpx';
+import { PatchFile, patchRPX } from './patchrpx';
 import { Patch } from './hooks';
 
 export let oFile: RPL;
@@ -151,19 +151,19 @@ console.info('Applying patches...');
 
 oFile = new RPL(fs.readFileSync(`${path.join(projectPath, project.name)}.o`));
 const rpx = new RPL(fs.readFileSync(vanillaRpxPath));
-
 const patches: Patch[] = project.patches();
 
-patchRPX(oFile, rpx, patches, brand, symbolMap.converter.syms, symbolMap.converter.text, symbolMap.converter.data);
+patchRPX(oFile, rpx, patches, brand, symbolMap.converter);
 
 if (prod) {
-    let patchFile = {
+    const patchFile: PatchFile = {
         patches: patches,
-        symsAddr: symbolMap.converter.syms,
-        textAddr: symbolMap.converter.text,
-        dataAddr: symbolMap.converter.data
+        addrs: {
+            syms: symbolMap.converter.syms,
+            text: symbolMap.converter.text,
+            data: symbolMap.converter.data
+        }
     }
-
     fs.writeFileSync(`${path.join(projectPath, region)}.json`, JSON.stringify(patchFile))
 }
 

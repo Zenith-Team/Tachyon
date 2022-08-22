@@ -4,15 +4,6 @@ import {
 import { u32, s32 } from './utils';
 import { Patch } from './hooks';
 
-export interface PatchFile {
-    patches: Patch[],
-    addrs: {
-        syms: u32,
-        text: u32,
-        data: u32
-    }
-}
-
 export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
     interface SectionMap {
         text: Section, rodata: Section, data: Section, bss: NoBitsSection,

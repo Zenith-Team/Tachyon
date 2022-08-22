@@ -1,27 +1,68 @@
-import { PatchFile, patchRPX } from './patchrpx';
-import { RPL } from 'rpxlib';
+import { Patch } from './hooks';
+import { patchRPX } from './patchrpx';
+import { RPL, WSLSafePath } from 'rpxlib';
+import { ResolveDrive, UnixPath } from './utils';
+import path from 'path';
 import fs from 'fs';
 
-let patchFilePath: string = '';
-let oFilePath: string = '';
-let rpxPath: string = '';
-let brand: string = '';
-let outpath: string = '';
-
+const cwd = process.cwd();
 const args = process.argv.slice(2);
+let patchFilePath: string = '';
+let rpxPath: string = '';
+let outpath: string = '';
 
 args.forEach((arg, i) => {
     if (arg === '--patch' || arg === '-p') patchFilePath = args[i + 1];
-    if (arg === '--ofile' || arg === '-f') oFilePath     = args[i + 1];
     if (arg === '--rpx'   || arg === '-r') rpxPath       = args[i + 1];
-    if (arg === '--brand' || arg === '-b') brand         = args[i + 1];
     if (arg === '--out'   || arg === '-o') outpath       = args[i + 1];
 });
+if (!patchFilePath) {
+    console.error('No patch file provided! The --patch option is required.');
+    process.exit();
+}
+if (!rpxPath) {
+    console.error('No base RPX file provided! The --rpx option is required.');
+    process.exit();
+}
+if (outpath) {
+    if (path.extname(outpath)) {
+        console.error('Output path may not contain the file extension, only the name.');
+        process.exit();
+    }
+    outpath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(outpath))));
+}
+patchFilePath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(patchFilePath))));
+rpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(rpxPath))));
 
-const patchFile: PatchFile = JSON.parse(fs.readFileSync(patchFilePath, 'utf8'));
+let patchFile = Buffer.from(fs.readFileSync(patchFilePath));
+try {
+    patchFile = Buffer.from(Bun.gunzipSync(patchFile));
+} catch (err) {
+    //throw err;
+    // File is not compressed, but it could still be an uncompressed patch file
+    // Silently proceed to magic check
+}
+if (patchFile.readUint32BE(0) !== 0xC5FC5046) {
+    console.error(`The file ${patchFilePath} is not a Tachyon Patch file!`);
+    process.exit();
+}
+console.info('Patching...');
+
+const decoder = new TextDecoder();
+const addrs = {
+    syms: patchFile.readUint32BE(0x4),
+    text: patchFile.readUint32BE(0x8),
+    data: patchFile.readUint32BE(0xC),
+}
+const patchesDataSize = patchFile.readUint32BE(0x10);
+const brandDataSize = patchFile.readUint32BE(0x14);
+const patches: Patch[] = JSON.parse(decoder.decode(patchFile.subarray(0x18, 0x18 + patchesDataSize)));
+const brand: string = decoder.decode(patchFile.subarray(0x18 + patchesDataSize, 0x18 + patchesDataSize + brandDataSize));
+const oFile = patchFile.subarray(0x18 + patchesDataSize + brandDataSize);
+
 const rpx = new RPL(fs.readFileSync(rpxPath));
+patchRPX(new RPL(oFile), rpx, patches, brand, addrs);
 
-patchRPX(new RPL(fs.readFileSync(oFilePath)), rpx, patchFile.patches, brand, patchFile.addrs);
-
-const savedTo = rpx.save(outpath.replace(/\.rpx/i, ''), true);
+const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
+const savedTo = rpx.save(`${outpath ? outpath.replace(/\.rpx/i, '') : defaultSavePath}.${brand}`, true);
 console.info(`Saved patched RPX to: ${savedTo}`);

@@ -1,7 +1,9 @@
 {
   "type": "module",
   "name": "tachyon",
-  "version": "1.1.0",
+  "version": "1.1.1",
+  "license": "MIT",
+  "private": true,
   "dependencies": {
     "bun-utilities": "^0.2.1",
     "rpxlib": "^0.3.0",

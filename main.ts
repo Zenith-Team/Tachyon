@@ -13,17 +13,10 @@ try {
             process.exit();
     }
 } catch (err) {
-    //? Uncomment line below for debugging
-    //throw err;
-    const lines = Bun.inspect(err).split('\n').map(l => l.trimEnd()).filter(Boolean);
-    const line = lines.filter(ln => ln.match(/^\d+? \|/)).at(-1);
-    const arrow = lines[lines.indexOf(line!) + 1];
-    const stack = lines.slice(lines.indexOf(arrow) + 1);
+    if (process.env.TACHYON_DEBUG) throw err;
     console.error(
         'Something has gone catastrophically wrong!\n' +
-        `${line ? `${line}\n${arrow}\n${stack.join('\n')}`
-                : `${(<Error>err).name}: ${(<Error>err).message}`
-        }`
+        `${(<Error>err).name}: ${(<Error>err).message}`
     );
     process.exit(1);
 }

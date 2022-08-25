@@ -28,8 +28,7 @@ rpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(rpxPath))));
 let patchFile = Buffer.from(fs.readFileSync(patchFilePath));
 try {
     patchFile = Buffer.from(Bun.gunzipSync(patchFile));
-} catch (err) {
-    //throw err;
+} catch {
     // File is not compressed, but it could still be an uncompressed patch file
     // Silently proceed to magic check
 }

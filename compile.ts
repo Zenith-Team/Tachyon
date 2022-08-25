@@ -31,6 +31,7 @@ args.forEach((arg, i) => {
     else if (arg === '--prod'    || arg === '-P') prod           = true;
 });
 
+if (!region) abort('No region specified! The --region option is required.');
 if (!vanillaRpxPath) {
     console.warn(`--rpx option not provided! Searching for vanilla RPX on current folder: ${cwd}/red-pro2.rpx`);
     vanillaRpxPath = './red-pro2.rpx';
@@ -44,7 +45,6 @@ if (!ghsPath) {
     console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${WindowsPath(defaultGhsPath)}`);
     ghsPath = defaultGhsPath;
 }
-if (!region) abort('No region specified! The --region option is required.');
 if (
     !vanillaRpxPath.endsWith('.rpx') && !vanillaRpxPath.endsWith('.elf')
 ) abort('The given RPX path is invalid. File must have extension .rpx or .elf');

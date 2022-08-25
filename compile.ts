@@ -4,7 +4,7 @@ import syslib from './syslib';
 import { SymbolMap } from './symbolmap';
 import { Project } from './project';
 import { UnixPath, ResolveDrive, WindowsPath } from './utils';
-import { RPL, WSLSafePath } from 'rpxlib';
+import { RPL, Util, WSLSafePath } from 'rpxlib';
 import { patchRPX } from './patchrpx';
 import { Patch } from './hooks';
 
@@ -151,36 +151,11 @@ console.info('Applying patches...');
 
 const oFileData = fs.readFileSync(`${path.join(projectPath, project.name)}.o`);
 oFile = new RPL(oFileData);
-const rpx = new RPL(fs.readFileSync(vanillaRpxPath));
+const rpxData = fs.readFileSync(vanillaRpxPath);
+const rpx = new RPL(rpxData);
 const patches: Patch[] = project.patches();
 
 patchRPX(oFile, rpx, patches, brand, symbolMap.converter);
-
-if (prod) {
-    console.info('[PROD] Generating patch file...');
-    const encoder = new TextEncoder();
-    const magic = new Uint8Array([0xC5, 0xFC, 0x50, 0x46]); // CSFC PF
-    const brandData = encoder.encode(brand);
-    const patchesData = encoder.encode(JSON.stringify(patches));
-    const values = Buffer.allocUnsafe(20);
-    values.writeUint32BE(symbolMap.converter.syms, 0); // 0x4
-    values.writeUint32BE(symbolMap.converter.text, 4); // 0x8
-    values.writeUint32BE(symbolMap.converter.data, 8); // 0xC
-    values.writeUint32BE(patchesData.byteLength,  12); // 0x10
-    values.writeUint32BE(brandData.byteLength,    16); // 0x14
-
-    const patchFileData = Bun.deflateSync(Buffer.concat([
-        magic,       // 0x0: u32
-        values,      // 0x4: u32, 0x8: u32, 0xC: u32, 0x10: u32, 0x14: u32
-        patchesData, // 0x18: char[]
-        brandData,   // 0x18 + (value at 0x10): char[]
-        oFileData    // (0x18 + (value at 0x10) + (value at 0x14)) + : u8[]
-    ]), { windowBits: -15, memLevel: 9, level: 9 });
-
-    const patchFilePath = path.join(outpath || path.dirname(vanillaRpxPath), `${project.name}-${region}.typf`);
-    fs.writeFileSync(patchFilePath, patchFileData);
-    console.info('[PROD] Saved patch file to:', patchFilePath);
-}
 
 //*--------------------
 //* Step 5: Save RPX
@@ -191,4 +166,33 @@ const defaultSavePath = vanillaRpxPath.split('.').slice(0, -1).join('.');
 const savePath = outpath ? path.join(outpath, path.basename(defaultSavePath)) : defaultSavePath;
 const savedTo = rpx.save(`${savePath}.${brand}`, prod);
 console.info(`Saved RPX to: ${savedTo}`);
+
+if (prod) {
+    console.info('[PROD] Generating patch file...');
+    const encoder = new TextEncoder();
+    const magic = new Uint8Array([0xC5, 0xFC, 0x50, 0x46]); // CSFC PF
+    const brandData = encoder.encode(brand);
+    const patchesData = encoder.encode(JSON.stringify(patches));
+    const values = Buffer.allocUnsafe(28);
+    values.writeUint32BE(symbolMap.converter.syms,              0); // 0x4
+    values.writeUint32BE(symbolMap.converter.text,              4); // 0x8
+    values.writeUint32BE(symbolMap.converter.data,              8); // 0xC
+    values.writeUint32BE(patchesData.byteLength,               12); // 0x10
+    values.writeUint32BE(brandData.byteLength,                 16); // 0x14
+    values.writeUint32BE(Util.crc32(rpxData),                  20); // 0x18
+    values.writeUint32BE(Util.crc32(fs.readFileSync(savedTo)), 24); // 0x1C
+
+    const patchFileData = Bun.deflateSync(Buffer.concat([
+        magic,       // 0x0: u32
+        values,      // 0x4: u32, 0x8: u32, 0xC: u32, 0x10: u32, 0x14: u32, 0x18: u32, 0x1C: u32
+        patchesData, // 0x20: char[]
+        brandData,   // 0x20 + (value at 0x10): char[]
+        oFileData    // 0x20 + (value at 0x10) + (value at 0x14): u8[]
+    ]), { windowBits: -15, memLevel: 9, level: 9 });
+
+    const patchFilePath = path.join(outpath || path.dirname(vanillaRpxPath), `${project.name}-${region}.typf`);
+    fs.writeFileSync(patchFilePath, patchFileData);
+    console.info('[PROD] Saved patch file to:', patchFilePath);
+}
+
 console.info(`Finished. Build took ${(performance.now() - timer).toFixed(3)}ms.`);

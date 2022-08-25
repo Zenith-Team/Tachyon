@@ -14,6 +14,13 @@ declare global {
 }
 
 /**
+ * Format a number into a proper hexadecimal string.
+ */
+export function hex(num: number, pad: number = 8, prefix = ''): string {
+    return prefix + num.toString(16).toUpperCase().padStart(pad, '0');
+}
+
+/**
  * Convert absolute WSL path to Windows path, if possible. Otherwise return the path unchanged.
  */
 export function WindowsPath(path: string) {

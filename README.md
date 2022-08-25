@@ -26,3 +26,6 @@ echo Tachyon installed.
 ```sh
 tachyon --help
 ```
+
+### Environment Variables
+Instead of passing the `--ghs` option to the `compile` command every time, Tachyon supports the `GHS_ROOT` environment variable to permanently store the path to GHS. (Optional)

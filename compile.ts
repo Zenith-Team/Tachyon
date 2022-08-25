@@ -32,18 +32,21 @@ args.forEach((arg, i) => {
 });
 
 if (!region) abort('No region specified! The --region option is required.');
-if (!vanillaRpxPath) {
-    console.warn(`--rpx option not provided! Searching for vanilla RPX on current folder: ${cwd}/red-pro2.rpx`);
-    vanillaRpxPath = './red-pro2.rpx';
-}
+if (!vanillaRpxPath) abort(`No RPX provided! The --rpx option is required.`);
 if (!projectPath) {
     console.warn(`--project option not provided! Assuming current folder as project folder: ${cwd}`);
     projectPath = cwd;
 }
 if (!ghsPath) {
-    const defaultGhsPath = WSLSafePath('C:/ghs/multi5327');
-    console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${WindowsPath(defaultGhsPath)}`);
-    ghsPath = defaultGhsPath;
+    if (process.env.GHS_ROOT) {
+        if (process.env.GHS_ROOT.endsWith('/') || process.env.GHS_ROOT.endsWith('\\')) process.env.GHS_ROOT = process.env.GHS_ROOT.slice(0, -1);
+        console.warn(`--ghs option not provided! Using path found in GHS_ROOT environment variable: ${process.env.GHS_ROOT}`);
+        ghsPath = WSLSafePath(process.env.GHS_ROOT);
+    } else {
+        const defaultGhsPath = WSLSafePath('C:/ghs/multi5327');
+        console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${WindowsPath(defaultGhsPath)}`);
+        ghsPath = defaultGhsPath;
+    }
 }
 if (
     !vanillaRpxPath.endsWith('.rpx') && !vanillaRpxPath.endsWith('.elf')

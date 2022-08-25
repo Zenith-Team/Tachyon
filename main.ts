@@ -31,7 +31,7 @@ Valid flags:
 
 Valid commands:
     compile                Compile a custom code project into an RPX/ELF.
-    patch                  Patch an RPX with a precompiled patch file. (NOT IMPLEMENTED)
+    patch                  Patch an RPX with a precompiled patch file.
 
 [Command specific options]
 compile
@@ -41,11 +41,13 @@ compile
     -R, --region <string>  Region of the vanilla RPX provided. *
     -o, --out <path>       Path to save the output file to. *
     -b, --brand <string>   Cosmetic text to differ the output file from vanilla. *
-    -P, --prod             By default an uncompressed ELF is output for fast development,
-                           use this flag to output a proper compressed RPX. *
+    -P, --prod             Output compressed RPX instead of uncompressed ELF, *
+                           also generate a Tachyon patch file next to the RPX.
 
 patch
-    NOT IMPLEMENTED
+    -p, --patch            Path to Tachyon patch file to apply.
+    -r, --rpx              Path to input RPX file to patch.
+    -o, --out              Path to save the output RPX to. *
 
 * Flags or options with an asterisk at the end of the description are optional`);
     process.exit();

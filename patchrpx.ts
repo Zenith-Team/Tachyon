@@ -1,7 +1,7 @@
 import {
     RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress
 } from 'rpxlib';
-import { u32, s32 } from './utils';
+import { u32, s32, hex } from './utils';
 import { Patch } from './hooks';
 
 export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
@@ -117,13 +117,13 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
             } else {
                 console.warn(
                     `Patch of data "${data}" at address 0x${
-                        address.toString(16).toUpperCase().padStart(8, '0')
+                        hex(address)
                     } is within the data sections bounds but outside all known patchable data sections (.data & .rodata)`
                 );
                 continue;
             }
         } else {
-            console.warn(`Patch of data "${data}" at address 0x${address.toString(16).toUpperCase().padStart(8, '0')} is out of bounds.`);
+            console.warn(`Patch of data "${data}" at address 0x${hex(address)} is out of bounds.`);
             continue;
         }
 

@@ -5,7 +5,7 @@ import yamlLib from 'yaml';
 import { Patch } from './hooks';
 import { Module } from './module';
 import { SymbolMap } from './symbolmap';
-import { WindowsPath } from './utils';
+import { hex, WindowsPath } from './utils';
 import syslib from './syslib';
 
 interface ProjectYAML {
@@ -89,10 +89,10 @@ export class Project {
         let linkerDirective: string[] = [];
 
         linkerDirective.push('MEMORY {'
-                           , '\ttext : origin = 0x' + map.converter.text.toString(16).toUpperCase()
-                           + ', length = 0x' + (DataBaseAddress - map.converter.text).toString(16).toUpperCase()
-                           , '\tdata : origin = 0x' + map.converter.data.toString(16).toUpperCase()
-                           + ', length = 0x' + (LoadBaseAddress - map.converter.data).toString(16).toUpperCase()
+                           , '\ttext : origin = 0x' + hex(map.converter.text)
+                           + ', length = 0x' + hex(DataBaseAddress - map.converter.text)
+                           , '\tdata : origin = 0x' + hex(map.converter.data)
+                           + ', length = 0x' + hex(LoadBaseAddress - map.converter.data)
                            , '}'
                            , '\nOPTION("-append")'
                            , '\nSECTIONS {'

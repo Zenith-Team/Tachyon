@@ -3,7 +3,7 @@ import path from 'path';
 import syslib from './syslib';
 import { SymbolMap } from './symbolmap';
 import { Project } from './project';
-import { UnixPath, ResolveDrive, WindowsPath } from './utils';
+import { UnixPath, ResolveDrive, WindowsPath, hex } from './utils';
 import { RPL, Util, WSLSafePath } from 'rpxlib';
 import { patchRPX } from './patchrpx';
 import { Patch } from './hooks';
@@ -104,7 +104,7 @@ console.info('Parsing project...');
 symbolMap = new SymbolMap(projectPath, region);
 
 const project = new Project(projectPath, ghsPath);
-project.defines.push('DATA_ADDR=0x' + symbolMap.converter.data.toString(16).toUpperCase().padStart(8, '0'));
+project.defines.push('DATA_ADDR=0x' + hex(symbolMap.converter.data));
 project.createGPJ();
 
 //*--------------------

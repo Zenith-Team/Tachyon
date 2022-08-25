@@ -1,6 +1,6 @@
 ﻿import { oFile, symbolMap } from './compile';
 import { SymbolSection } from 'rpxlib';
-import { s32, u32 } from './utils';
+import { hex, s32, u32 } from './utils';
 
 export interface HookYAML {
     type: string;
@@ -125,13 +125,13 @@ export class BranchHook extends Hook {
 
         instr = ((target) - this.source()) & 0x03FFFFFC;
 
-        if      (this.instr === 'b') instr |= 0x48000000;
+        if      (this.instr === 'b')  instr |= 0x48000000;
         else if (this.instr === 'bl') instr |= 0x48000001;
         else console.warn('Unknown branch instruction:', this.instr);
 
         return {
             address: this.source(),
-            data: instr.toString(16).toUpperCase().padStart(8, '0').slice(0, 8)
+            data: hex(instr).slice(0, 8)
         };
     }
 
@@ -158,7 +158,7 @@ export class FuncptrHook extends Hook {
 
         return {
             address: this.source(),
-            data: target.toString(16).toUpperCase().padStart(8, '0')
+            data: hex(target)
         };
     }
 

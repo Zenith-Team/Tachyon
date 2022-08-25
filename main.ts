@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 const args = process.argv.slice(2);
 
 try {
@@ -14,7 +15,16 @@ try {
 } catch (err) {
     //? Uncomment line below for debugging
     //throw err;
-    console.error('Something has gone catastrophically wrong: ' + (<Error>err).message);
+    const lines = Bun.inspect(err).split('\n').map(l => l.trimEnd()).filter(Boolean);
+    const line = lines.filter(ln => ln.match(/^\d+? \|/)).at(-1);
+    const arrow = lines[lines.indexOf(line!) + 1];
+    const stack = lines.slice(lines.indexOf(arrow) + 1);
+    console.error(
+        'Something has gone catastrophically wrong!\n' +
+        `${line ? `${line}\n${arrow}\n${stack.join('\n')}`
+                : `${(<Error>err).name}: ${(<Error>err).message}`
+        }`
+    );
     process.exit(1);
 }
 
@@ -50,7 +60,7 @@ patch
 
 if (args.includes('-v') || args.includes('--version')) {
     try {
-        const { version } = JSON.parse(fs.readFileSync(`${import.meta.dir}/package.json`, 'utf8'));
+        const { version } = JSON.parse(fs.readFileSync(path.join(import.meta.dir, 'package.json'), 'utf8'));
         console.info(`Tachyon v${version}`);
     } catch {
         console.error('Failed to get version.');
@@ -60,5 +70,3 @@ if (args.includes('-v') || args.includes('--version')) {
 
 console.error('Unknown command or options, run "tachyon --help" for information.');
 process.exit();
-
-export {};

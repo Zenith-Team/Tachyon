@@ -101,7 +101,7 @@ const timer = performance.now();
 //* Step 1: Parse project
 //*--------------------
 console.info('Parsing project...');
-symbolMap = new SymbolMap(projectPath, region);
+symbolMap = new CSymbolMap(projectPath, region);
 
 const project = new Project(projectPath, ghsPath);
 project.defines.push('DATA_ADDR=0x' + hex(symbolMap.converter.data));

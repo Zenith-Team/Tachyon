@@ -3,7 +3,7 @@ import path from 'path';
 import syslib from './syslib';
 import { SymbolMap } from './symbolmap';
 import { Project } from './project';
-import { UnixPath, ResolveDrive, WindowsPath, hex } from './utils';
+import { UnixPath, ResolveDrive, WindowsPath, hex, abort } from './utils';
 import { RPL, Util, WSLSafePath } from 'rpxlib';
 import { patchRPX } from './patchrpx';
 import { Patch } from './hooks';
@@ -41,59 +41,29 @@ if (!projectPath) {
 }
 if (!ghsPath) {
     const defaultGhsPath = WSLSafePath('C:/ghs/multi5327');
-    console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${defaultGhsPath}`);
+    console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${WindowsPath(defaultGhsPath)}`);
     ghsPath = defaultGhsPath;
 }
-if (!region) {
-    console.warn('--region option not provided! Defaulting to USv130.');
-    region = 'USv130';
-}
-if (!vanillaRpxPath.endsWith('.rpx') && !vanillaRpxPath.endsWith('.elf')) {
-    console.error('The given RPX path is invalid. File must have extension .rpx or .elf');
-    process.exit();
-}
+if (!region) abort('No region specified! The --region option is required.');
+if (
+    !vanillaRpxPath.endsWith('.rpx') && !vanillaRpxPath.endsWith('.elf')
+) abort('The given RPX path is invalid. File must have extension .rpx or .elf');
 if (outpath) {
-    if (path.extname(outpath)) {
-        console.error('Output path may not contain the file extension, only the name.');
-        process.exit();
-    }
+    if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
     outpath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(outpath))));
 }
 vanillaRpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(vanillaRpxPath))));
 projectPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(projectPath))));
 ghsPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(ghsPath))));
 
-if (!fs.existsSync(vanillaRpxPath)) {
-    console.error('Could not locate vanilla RPX!');
-    process.exit();
-}
-if (!fs.existsSync(projectPath)) {
-    console.error('Project path folder does not exist!');
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'project.yaml'))) {
-    console.error('Project folder does not have a project.yaml!');
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'syms'))) {
-    console.error('Project folder does not have a "syms" folder!');
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'syms', 'main.map'))) {
-    console.error('Project symbols folder does not have a main.map file!');
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'conv'))) {
-    console.error('Project folder does not have a "conv" folder!');
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.yaml`))) {
-    console.error(`Conversion map for region ${region} not found!`);
-    process.exit();
-}
-if (!fs.existsSync(path.join(projectPath, 'linker'))) {
-    fs.mkdirSync(path.join(projectPath, 'linker'));
-}
+if (!fs.existsSync(vanillaRpxPath))                                   abort('Path to vanilla RPX does not exist!');
+if (!fs.existsSync(projectPath))                                      abort('Project path folder does not exist!');
+if (!fs.existsSync(path.join(projectPath, 'project.yaml')))           abort('Project folder does not have a project.yaml!');
+if (!fs.existsSync(path.join(projectPath, 'syms')))                   abort('Project folder does not have a "syms" folder!');
+if (!fs.existsSync(path.join(projectPath, 'syms', 'main.map')))       abort('Project symbols folder does not have a main.map file!');
+if (!fs.existsSync(path.join(projectPath, 'conv')))                   abort('Project folder does not have a "conv" folder!');
+if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.yaml`))) abort(`Conversion map for region ${region} not found!`);
+if (!fs.existsSync(path.join(projectPath, 'linker')))                 fs.mkdirSync(path.join(projectPath, 'linker'));
 
 const timer = performance.now();
 
@@ -119,10 +89,7 @@ const gbuildCommand = [
     path.join(project.ghsPath, 'gbuild.exe'), '-top', path.join(projectPath, 'project.gpj')
 ];
 const gbuild = syslib.exec(gbuildCommand, { cwd: projectPath, stdout: 'inherit', stderr: 'inherit' });
-if (!gbuild.isExecuted || gbuild.exitCode || gbuild.stderr) {
-    console.error('gbuild command failed!');
-    process.exit();
-}
+if (!gbuild.isExecuted || gbuild.exitCode || gbuild.stderr) abort('gbuild command failed!');
 
 for (const asmfile of project.asmFiles) {
     console.info('Assembling', asmfile);
@@ -132,10 +99,7 @@ for (const asmfile of project.asmFiles) {
         `${WindowsPath(path.join(objsPath, path.basename(asmfile)))}.o`, WindowsPath(path.join(projectPath, 'source', asmfile))
     ];
     const asppc = syslib.exec(asppcCommand, { cwd: projectPath, stdout: 'inherit', stderr: 'inherit' });
-    if (!asppc.isExecuted || asppc.exitCode || asppc.stderr) {
-        console.error('asppc command failed!');
-        process.exit();
-    }
+    if (!asppc.isExecuted || asppc.exitCode || asppc.stderr) abort('asppc command failed!');
 }
 
 //*--------------------

@@ -1,7 +1,7 @@
 import {
     RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress
 } from 'rpxlib';
-import { u32, s32, hex } from './utils';
+import { u32, s32, hex, abort } from './utils';
 import { Patch } from './hooks';
 
 export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
@@ -153,10 +153,7 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         sink.write(relocData.subarray(start));
         targetRelocSection.data = sink.end() as Uint8Array;
 
-        if (data.length % 2) {
-            console.error(`Data of patch at ${address} of section ${targetSection.name} is not byte aligned: ${data}`);
-            process.exit();
-        }
+        if (data.length % 2) abort(`Data of patch at ${address} of section ${targetSection.name} is not byte aligned: ${data}`);
 
         const dataBytes = Buffer.from(data, 'hex');
         for (let i = 0; i < dataBytes.byteLength; i++) {

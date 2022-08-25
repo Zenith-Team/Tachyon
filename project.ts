@@ -5,7 +5,7 @@ import yamlLib from 'yaml';
 import { Patch } from './hooks';
 import { Module } from './module';
 import { SymbolMap } from './symbolmap';
-import { hex, WindowsPath } from './utils';
+import { abort, hex, WindowsPath } from './utils';
 import syslib from './syslib';
 
 interface ProjectYAML {
@@ -29,8 +29,7 @@ export class Project {
             this.ghsPath = ghsPath;
             this.defines = yaml.Defines ?? [];
         } catch (err) {
-            console.error('Invalid project.yaml!');
-            process.exit();
+            abort('Invalid project.yaml!');
         }
 
         // Verify tools
@@ -38,10 +37,7 @@ export class Project {
             !fs.existsSync(path.join(this.ghsPath, 'gbuild.exe')) ||
             !fs.existsSync(path.join(this.ghsPath, 'asppc.exe')) ||
             !fs.existsSync(path.join(this.ghsPath, 'elxr.exe'))
-        ) {
-            console.error('Could not locate Green Hills Software MULTI!');
-            process.exit();
-        }
+        ) abort('Could not locate Green Hills Software MULTI!');
     }
 
     public createGPJ(): void {
@@ -116,10 +112,7 @@ export class Project {
             elxrCommand.push(WindowsPath(path.join(this.path, 'objs', path.basename(file))));
         }
         const elxr = syslib.exec(elxrCommand, { cwd: this.path, stdout: 'inherit', stderr: 'inherit' });
-        if (!elxr.isExecuted || elxr.exitCode || elxr.stderr) {
-            console.error('exlr command failed!');
-            process.exit();
-        }
+        if (!elxr.isExecuted || elxr.exitCode || elxr.stderr) abort('exlr command failed!');
     }
 
     public patches(): Patch[] {

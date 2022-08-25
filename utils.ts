@@ -14,6 +14,14 @@ declare global {
 }
 
 /**
+ * Print out an error and terminate execution.
+ */
+export function abort(msg: string, code: number = 0): never {
+    console.error(msg);
+    process.exit(code);
+}
+
+/**
  * Format a number into a proper hexadecimal string.
  */
 export function hex(num: number, pad: number = 8, prefix = ''): string {

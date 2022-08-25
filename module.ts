@@ -1,6 +1,7 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import yamlLib from 'yaml';
+import { abort } from './utils';
 import {
     BranchHook, FuncptrHook, Hook, HookYAML, MultiNopHook, NopHook, PatchHook, ReturnHook, ReturnValueHook
 } from './hooks';
@@ -23,10 +24,7 @@ export class Module {
 
             for (const hook of yaml.Hooks) {
                 if (Number.isSafeInteger(hook.addr)) {
-                    console.error(
-                        `Invalid address for hook #${yaml.Hooks.indexOf(hook) + 1} of type ${hook.type} in module ${path.basename(yamlPath, '.yaml')}`
-                    );
-                    process.exit();
+                    abort(`Invalid address for hook #${yaml.Hooks.indexOf(hook)+1} of type ${hook.type} in module ${path.basename(yamlPath, '.yaml')}`);
                 }
                 switch (hook.type) {
                     case 'patch':       this.hooks.push(new PatchHook(hook)); break;

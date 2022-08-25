@@ -1,7 +1,7 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
-import { hex, s32, u32 } from './utils';
+import { abort, hex, s32, u32 } from './utils';
 
 export interface CSymbol {
     name: string;
@@ -69,10 +69,7 @@ export class SymbolMap {
 
             if (line === '' || line[0] === '#') continue;
             if (line.includes('#')) line = line.split('#')[0] ?? '';
-            if (!line.endsWith(';')) {
-                console.error(`Error parsing syms/main.map at line ${currentLine}: Missing semicolon`);
-                process.exit();
-            }
+            if (!line.endsWith(';')) abort(`Error parsing syms/main.map at line ${currentLine}: Missing semicolon`);
 
             const parts: string[] = line.replaceAll(';', '').split('=');
             const sym: CSymbol = { name: parts[0], address: NaN };
@@ -90,10 +87,7 @@ export class SymbolMap {
                         break;
                     }
                 }
-                if (!success) {
-                    console.error(`Unable to locate literal address for symbol: ${parts[1]}`);
-                    process.exit();
-                }
+                if (!success) abort(`Unable to locate literal address for symbol: ${parts[1]}`);
             }
             symbols.push(sym);
         }
@@ -103,8 +97,7 @@ export class SymbolMap {
             const convyaml: ConvMapYAML = yaml.parse(fs.readFileSync(path.join(projectPath, 'conv', region) + '.yaml', 'utf8'));
             this.converter = new ConvMap(convyaml);
         } catch {
-            console.error(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}.yaml`);
-            process.exit();
+            abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}.yaml`);
         }
 
         this.convertedLines.push('SECTIONS {');
@@ -123,8 +116,7 @@ export class SymbolMap {
         for (const symbol of this.symbols) {
             if (symbol.name === name) return symbol;
         }
-        console.error(`Failed to find required symbol: ${name}`);
-        process.exit();
+        abort(`Failed to find required symbol: ${name}`);
     }
 
     convertedLines: string[] = [];

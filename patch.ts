@@ -1,7 +1,7 @@
 import { Patch } from './hooks';
 import { patchRPX } from './patchrpx';
 import { RPL, Util, WSLSafePath } from 'rpxlib';
-import { hex, ResolveDrive, UnixPath } from './utils';
+import { abort, hex, ResolveDrive, UnixPath } from './utils';
 import path from 'path';
 import fs from 'fs';
 
@@ -16,19 +16,10 @@ args.forEach((arg, i) => {
     if (arg === '--rpx'   || arg === '-r') rpxPath       = args[i + 1];
     if (arg === '--out'   || arg === '-o') outpath       = args[i + 1];
 });
-if (!patchFilePath) {
-    console.error('No patch file provided! The --patch option is required.');
-    process.exit();
-}
-if (!rpxPath) {
-    console.error('No base RPX file provided! The --rpx option is required.');
-    process.exit();
-}
+if (!patchFilePath) abort('No patch file provided! The --patch option is required.');
+if (!rpxPath) abort('No base RPX file provided! The --rpx option is required.');
 if (outpath) {
-    if (path.extname(outpath)) {
-        console.error('Output path may not contain the file extension, only the name.');
-        process.exit();
-    }
+    if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
     outpath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(outpath))));
 }
 patchFilePath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(patchFilePath))));
@@ -42,10 +33,7 @@ try {
     // File is not compressed, but it could still be an uncompressed patch file
     // Silently proceed to magic check
 }
-if (patchFile.readUint32BE(0) !== 0xC5FC5046) {
-    console.error(`The file ${patchFilePath} is not a Tachyon Patch file!`);
-    process.exit();
-}
+if (patchFile.readUint32BE(0) !== 0xC5FC5046) abort(`The file ${patchFilePath} is not a Tachyon Patch file!`);
 console.info('Patching...');
 
 const DYNAMIC_OFFSET = 0x20 as const;
@@ -66,10 +54,7 @@ const oFile = patchFile.subarray(DYNAMIC_OFFSET + patchesDataSize + brandDataSiz
 const rpxData = fs.readFileSync(rpxPath);
 const rpxHash = Util.crc32(rpxData);
 if (rpxHash !== expectedInputRPXHash) {
-    console.error(
-        `The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}`
-    );
-    process.exit();
+    abort(`The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}`);
 }
 const rpx = new RPL(rpxData);
 patchRPX(new RPL(oFile), rpx, patches, brand, addrs);
@@ -78,10 +63,7 @@ const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
 const savedTo = rpx.save(`${outpath ? outpath.replace(/\.rpx/i, '') : defaultSavePath}.${brand}`, true);
 const outHash = Util.crc32(fs.readFileSync(savedTo));
 if (outHash !== expectedOutputRPXHash) {
-    console.error(
-        `Patch failed. The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}`
-    );
     fs.unlinkSync(savedTo);
-    process.exit();
+    abort(`Patch failed. The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}`);
 }
 console.info(`Patch successful. Saved patched RPX to: ${savedTo}`);

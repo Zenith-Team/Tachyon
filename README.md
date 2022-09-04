@@ -6,12 +6,15 @@ An experimental Wii U custom code project compiler.
 
 The following are only required if running from source:
 * Windows
-    * [Node.js](https://nodejs.org/) v18 or higher
+    * [Node.js](https://nodejs.org/) v18.6 or higher
 * Linux
     * Latest version of [Bun](https://github.com/oven-sh/bun)
+    * If using WSL, it must be WSL2 with a bleeding edge kernel version
 
 ## Installation
-`git clone` the repository, then run the install script (`tachyon-install.sh`) below next to the cloned folder.
+- `git clone https://github.com/Zenith-Team/Tachyon`
+- `cd Tachyon` + `bun install` + `cd ..`
+- Create and run the install script below (`tachyon-install.sh`) next to the cloned folder:
 ```sh
 #!/usr/bin/env bash
 rm -rf "$BUN_INSTALL/install/global/node_modules/tachyon"
@@ -21,11 +24,17 @@ ln -sf "$BUN_INSTALL/install/global/node_modules/tachyon/tachyon.sh" "$BUN_INSTA
 chmod +x "$BUN_INSTALL/bin/tachyon"
 echo Tachyon installed.
 ```
+> **Note**
+> If you get an error about `cp: cannot create directory` when running the install script, run `bun add -g bun-repl` and try again.
+>
+> If you get no output from the command for the above solution, you need to update WSL kernel: `wsl --update` + `wsl --shutdown`
 
 ## Usage
 ```sh
 tachyon --help
 ```
+> **Note**
+> If you have issues with it not being able to find relative paths, just use absolute paths for now.
 
 ### Environment Variables
 Instead of passing the `--ghs` option to the `compile` command every time, Tachyon supports the `GHS_ROOT` environment variable to permanently store the path to GHS. (Optional)

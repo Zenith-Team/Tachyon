@@ -2,7 +2,7 @@
 An experimental Wii U custom code project compiler.
 
 ## Requirements
-* Green Hills Software MULTI (for the `compile` command only)
+* Green Hills Software MULTI (required only for the `compile` command)
 
 The following are only required if running from source:
 * Windows

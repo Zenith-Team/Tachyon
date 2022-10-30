@@ -5,11 +5,7 @@ An experimental Wii U custom code project compiler.
 * Green Hills Software MULTI (required only for the `compile` command)
 
 The following are only required if running from source:
-* Windows
-    * [Node.js](https://nodejs.org/) v18.6 or higher
-* Linux
-    * Latest version of [Bun](https://github.com/oven-sh/bun)
-    * If using WSL, it must be WSL2 with a bleeding edge kernel version
+* [Node.js](https://nodejs.org/) v18.6 or higher
 
 ## Installation
 - `git clone https://github.com/Zenith-Team/Tachyon`

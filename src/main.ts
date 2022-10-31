@@ -57,7 +57,7 @@ patch
 
 if (args.includes('-v') || args.includes('--version')) {
     try {
-        const { version } = JSON.parse(fs.readFileSync(path.join(fileURLToPath(import.meta.url), '..', 'package.json'), 'utf8'));
+        const { version } = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
         console.info(`Tachyon v${version}`);
     } catch {
         console.error('Failed to get version.');

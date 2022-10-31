@@ -3,6 +3,7 @@ import { patchRPX } from './patchrpx';
 import { RPL, Util, WSLSafePath } from 'rpxlib';
 import { abort, hex, ResolveDrive, UnixPath } from './utils';
 import path from 'path';
+import zlib from 'zlib';
 import fs from 'fs';
 
 const cwd = process.cwd();
@@ -27,7 +28,7 @@ rpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(rpxPath))));
 
 let patchFile = Buffer.from(fs.readFileSync(patchFilePath));
 try {
-    patchFile = Buffer.from(Bun.gunzipSync(patchFile));
+    patchFile = Buffer.from(zlib.inflateSync(patchFile));
 } catch {
     // File is not compressed, but it could still be an uncompressed patch file
     // Silently proceed to magic check

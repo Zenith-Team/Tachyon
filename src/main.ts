@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 const args = process.argv.slice(2);
 
 try {
@@ -55,7 +56,7 @@ patch
 
 if (args.includes('-v') || args.includes('--version')) {
     try {
-        const { version } = JSON.parse(fs.readFileSync(path.join(import.meta.dir, 'package.json'), 'utf8'));
+        const { version } = JSON.parse(fs.readFileSync(path.join(fileURLToPath(import.meta.url), '..', 'package.json'), 'utf8'));
         console.info(`Tachyon v${version}`);
     } catch {
         console.error('Failed to get version.');

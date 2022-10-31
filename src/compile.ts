@@ -1,5 +1,6 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import syslib from './syslib';
 import { SymbolMap } from './symbolmap';
 import { Project } from './project';
@@ -149,13 +150,13 @@ if (prod) {
     values.writeUint32BE(Util.crc32(rpxData),                  20); // 0x18
     values.writeUint32BE(Util.crc32(fs.readFileSync(savedTo)), 24); // 0x1C
 
-    const patchFileData = Bun.deflateSync(Buffer.concat([
+    const patchFileData = zlib.deflateSync(Buffer.concat([
         magic,       // 0x0: u32
         values,      // 0x4: u32, 0x8: u32, 0xC: u32, 0x10: u32, 0x14: u32, 0x18: u32, 0x1C: u32
         patchesData, // 0x20: char[]
         brandData,   // 0x20 + (value at 0x10): char[]
         oFileData    // 0x20 + (value at 0x10) + (value at 0x14): u8[]
-    ]), { windowBits: -15, memLevel: 9, level: 9 });
+    ]), { memLevel: 9, level: 9 });
 
     const patchFilePath = path.join(outpath || path.dirname(vanillaRpxPath), `${project.name}-${region}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);

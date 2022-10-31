@@ -1,16 +1,17 @@
 import { Patch } from './hooks';
 import { patchRPX } from './patchrpx';
-import { RPL, Util, WSLSafePath } from 'rpxlib';
+import { RPL, WSLSafePath } from 'rpxlib';
 import { abort, hex, ResolveDrive, UnixPath } from './utils';
+import crc from '@foxglove/crc';
 import path from 'path';
 import zlib from 'zlib';
 import fs from 'fs';
 
 const cwd = process.cwd();
 const args = process.argv.slice(2);
-let patchFilePath: string = '';
-let rpxPath: string = '';
-let outpath: string = '';
+let patchFilePath: string | undefined;
+let rpxPath: string | undefined;
+let outpath: string | undefined;
 
 args.forEach((arg, i) => {
     if (arg === '--patch' || arg === '-p') patchFilePath = args[i + 1];
@@ -52,7 +53,7 @@ const brand: string = decoder.decode(patchFile.subarray(DYNAMIC_OFFSET + patches
 const oFile = patchFile.subarray(DYNAMIC_OFFSET + patchesDataSize + brandDataSize);
 
 const rpxData = fs.readFileSync(rpxPath);
-const rpxHash = Util.crc32(rpxData);
+const rpxHash = crc.crc32(rpxData);
 if (rpxHash !== expectedInputRPXHash) {
     abort(`The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}`);
 }
@@ -61,7 +62,7 @@ patchRPX(new RPL(oFile), rpx, patches, brand, addrs);
 
 const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
 const savedTo = rpx.save(`${outpath ? outpath.replace(/\.rpx/i, '') : defaultSavePath}.${brand}`, true);
-const outHash = Util.crc32(fs.readFileSync(savedTo));
+const outHash = crc.crc32(fs.readFileSync(savedTo));
 if (outHash !== expectedOutputRPXHash) {
     fs.unlinkSync(savedTo);
     abort(`Patch failed. The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}`);

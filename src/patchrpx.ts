@@ -1,5 +1,5 @@
 import {
-    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress
+    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress, DataSink
 } from 'rpxlib';
 import { u32, s32, hex, abort } from './utils';
 import { Patch } from './hooks';
@@ -135,7 +135,7 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         while (low <= high) {
             const mid: s32 = ~~((low + high) / 2);
             const at: number = mid * relocSize;
-            const val: u32 = (relocData[at] << 24 | relocData[at+1] << 16 | relocData[at+2] << 8 | relocData[at+3]) >>> 0;
+            const val: u32 = (relocData[at]! << 24 | relocData[at+1]! << 16 | relocData[at+2]! << 8 | relocData[at+3]!) >>> 0;
             if (val < address) low = mid + 1;
             else if (val > address + 4) high = mid - 1;
             else {
@@ -144,20 +144,19 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
             }
         }
         let start = 0;
-        const sink = new Util.ArrayBufferSink();
-        sink.start({ asUint8Array: true });
+        const sink = new DataSink();
         for (const offset of offsets.sort((a, b) => a - b)) {
             sink.write(relocData.subarray(start, offset));
             start = offset + 12;
         }
         sink.write(relocData.subarray(start));
-        targetRelocSection.data = sink.end() as Uint8Array;
+        targetRelocSection.data = sink.end();
 
         if (data.length % 2) abort(`Data of patch at ${address} of section ${targetSection.name} is not byte aligned: ${data}`);
 
         const dataBytes = Buffer.from(data, 'hex');
         for (let i = 0; i < dataBytes.byteLength; i++) {
-            targetSection.data![(address - <number>targetSection.addr) + i] = dataBytes[i];
+            targetSection.data![(address - <number>targetSection.addr) + i] = dataBytes[i]!;
         }
     }
 

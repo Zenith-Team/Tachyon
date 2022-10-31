@@ -1,12 +1,12 @@
 ﻿import fs from 'fs';
 import path from 'path';
-import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 import yamlLib from 'yaml';
 import { Patch } from './hooks';
 import { Module } from './module';
 import { SymbolMap } from './symbolmap';
+import { spawnSync } from 'child_process';
 import { abort, hex, WindowsPath } from './utils';
-import syslib from './syslib';
+import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 
 interface ProjectYAML {
     Name: string;
@@ -100,8 +100,9 @@ export class Project {
 
         fs.writeFileSync(path.join(this.path, 'linker', region) + '.ld', linkerDirective.join('\n'));
 
-        let elxrCommand = [
-            path.join(this.ghsPath, 'elxr.exe'), '-T', WindowsPath(path.join(this.path, 'syms', region) + '.x'), '-T',
+        const elxrCommand = path.join(this.ghsPath, 'elxr.exe');
+        let elxrArgs = [
+            '-T', WindowsPath(path.join(this.path, 'syms', region) + '.x'), '-T',
             WindowsPath(path.join(this.path, 'linker', region) + '.ld'), '-o', WindowsPath(path.join(this.path, this.name) + '.o')
         ];
         let objFiles: string[] = [];
@@ -109,10 +110,10 @@ export class Project {
         for (const cppfile of this.cppFiles) objFiles.push(cppfile.replace('.cpp', '.o'));
         for (const asmfile of this.asmFiles) objFiles.push(path.basename(asmfile) + '.o');
         for (const file of objFiles) {
-            elxrCommand.push(WindowsPath(path.join(this.path, 'objs', path.basename(file))));
+            elxrArgs.push(WindowsPath(path.join(this.path, 'objs', path.basename(file))));
         }
-        const elxr = syslib.exec(elxrCommand, { cwd: this.path, stdout: 'inherit', stderr: 'inherit' });
-        if (!elxr.isExecuted || elxr.exitCode || elxr.stderr) abort('exlr command failed!');
+        const elxr = spawnSync(elxrCommand, elxrArgs, { cwd: this.path, stdio: 'inherit' });
+        if (elxr.error || elxr.signal || elxr.stderr || elxr.status !== 0) abort('exlr command failed!');
     }
 
     public patches(): Patch[] {

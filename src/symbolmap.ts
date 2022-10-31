@@ -72,7 +72,7 @@ export class SymbolMap {
             if (!line.endsWith(';')) abort(`Error parsing syms/main.map at line ${currentLine}: Missing semicolon`);
 
             const parts: string[] = line.replaceAll(';', '').split('=');
-            const sym: CSymbol = { name: parts[0], address: NaN };
+            const sym: CSymbol = { name: parts[0]!, address: NaN };
 
             try {
                 const num = Number(parts[1]);

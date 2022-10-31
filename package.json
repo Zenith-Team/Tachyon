@@ -5,6 +5,7 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
+    "@foxglove/crc": "^0.0.3",
     "rpxlib": "^0.3.0-node.3",
     "yaml": "^2.1.3"
   },

@@ -1,7 +1,7 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
-import { abort, hex, s32, u32 } from './utils';
+import { abort, hex, s32, u32 } from './utils.js';
 
 export interface CSymbol {
     name: string;

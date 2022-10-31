@@ -1,8 +1,8 @@
 import {
     RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress, DataSink
 } from 'rpxlib';
-import { u32, s32, hex, abort } from './utils';
-import { Patch } from './hooks';
+import { u32, s32, hex, abort } from './utils.js';
+import { Patch } from './hooks.js';
 
 export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
     interface SectionMap {

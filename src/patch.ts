@@ -1,7 +1,7 @@
-import { Patch } from './hooks';
-import { patchRPX } from './patchrpx';
+import { Patch } from './hooks.js';
+import { patchRPX } from './patchrpx.js';
 import { RPL, WSLSafePath } from 'rpxlib';
-import { abort, hex, ResolveDrive, UnixPath } from './utils';
+import { abort, hex, ResolveDrive, UnixPath } from './utils.js';
 import crc from '@foxglove/crc';
 import path from 'path';
 import zlib from 'zlib';

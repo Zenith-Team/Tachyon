@@ -1,11 +1,11 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import yamlLib from 'yaml';
-import { Patch } from './hooks';
-import { Module } from './module';
-import { SymbolMap } from './symbolmap';
+import { Patch } from './hooks.js';
+import { Module } from './module.js';
 import { spawnSync } from 'child_process';
-import { abort, hex, WindowsPath } from './utils';
+import { SymbolMap } from './symbolmap.js';
+import { abort, hex, WindowsPath } from './utils.js';
 import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 
 interface ProjectYAML {

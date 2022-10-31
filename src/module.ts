@@ -1,10 +1,10 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import yamlLib from 'yaml';
-import { abort } from './utils';
+import { abort } from './utils.js';
 import {
     BranchHook, FuncptrHook, Hook, HookYAML, MultiNopHook, NopHook, PatchHook, ReturnHook, ReturnValueHook
-} from './hooks';
+} from './hooks.js';
 
 interface ModuleYAML {
     Files: string[];

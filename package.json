@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "tachyon",
-  "version": "1.2.2-node.1",
+  "version": "1.2.3",
   "license": "MIT",
   "main": "dist/main.js",
   "private": true,
@@ -14,7 +14,8 @@
     "@types/node": "^18.11.8"
   },
   "scripts": {
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "build": "rm -rf dist && tsc && npm rm -g tachyon && npm link"
   },
   "bin": {
     "tachyon": "dist/main.js"

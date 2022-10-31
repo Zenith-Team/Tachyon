@@ -1,6 +1,6 @@
-﻿import { oFile, symbolMap } from './compile';
+﻿import { oFile, symbolMap } from './compile.js';
+import { hex, s32, u32 } from './utils.js';
 import { SymbolSection } from 'rpxlib';
-import { hex, s32, u32 } from './utils';
 
 export interface HookYAML {
     type: string;

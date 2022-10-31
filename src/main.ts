@@ -8,10 +8,10 @@ try {
     // Process commands
     switch (args[0]) {
         case 'compile':
-            await import('./compile');
+            await import('./compile.js');
             process.exit();
         case 'patch':
-            await import('./patch');
+            await import('./patch.js');
             process.exit();
     }
 } catch (err) {

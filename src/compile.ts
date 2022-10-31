@@ -1,14 +1,14 @@
 ﻿import fs from 'fs';
-import crc from '@foxglove/crc';
 import path from 'path';
 import zlib from 'zlib';
-import { SymbolMap } from './symbolmap';
-import { Project } from './project';
-import { UnixPath, ResolveDrive, WindowsPath, hex, abort } from './utils';
-import { RPL, WSLSafePath } from 'rpxlib';
-import { patchRPX } from './patchrpx';
-import { Patch } from './hooks';
+import crc from '@foxglove/crc';
+import { Patch } from './hooks.js';
+import { Project } from './project.js';
 import { spawnSync } from 'child_process';
+import { RPL, WSLSafePath } from 'rpxlib';
+import { patchRPX } from './patchrpx.js';
+import { SymbolMap } from './symbolmap.js';
+import { UnixPath, ResolveDrive, WindowsPath, hex, abort } from './utils.js';
 
 export let oFile: RPL;
 export let symbolMap: SymbolMap;

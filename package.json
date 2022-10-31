@@ -3,6 +3,7 @@
   "name": "tachyon",
   "version": "1.2.2-node.1",
   "license": "MIT",
+  "main": "dist/main.js",
   "private": true,
   "dependencies": {
     "@foxglove/crc": "^0.0.3",
@@ -13,9 +14,9 @@
     "@types/node": "^18.11.8"
   },
   "scripts": {
-    "start": "echo no script"
+    "start": "node dist/main.js"
   },
   "bin": {
-    "tachyon": "./src/main.ts"
+    "tachyon": "dist/main.js"
   }
 }

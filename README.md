@@ -4,6 +4,7 @@ An experimental Wii U custom code project compiler.
 ## Requirements
 * Green Hills Software MULTI for PowerPC (required only for the `compile` command)
 * [Node.js](https://nodejs.org/) v18.6 or higher
+* For installation: `npm` v9 or higher (Node.js 18 comes with `npm` v8, use `npm i -g npm@9` to upgrade)
 
 ## Installation
 ```sh

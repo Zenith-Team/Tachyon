@@ -1,7 +1,7 @@
 import {
-    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress, DataSink
+    RPL, Util, Section, NoBitsSection, RelocationSection, StringSection, SymbolSection, LoadBaseAddress
 } from 'rpxlib';
-import { u32, s32, hex, abort } from './utils.js';
+import { u32, hex, abort } from './utils.js';
 import { Patch } from './hooks.js';
 
 export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
@@ -102,7 +102,7 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         let targetRelocSection: RelocationSection;
 
         const address: u32 = patch.address;
-        const data: string = patch.data;
+        const data: string = patch.data.toUpperCase();
 
         if (rpxSections.text.addr <= address && address < addrs.text) {
             targetSection = rpxSections.text;
@@ -115,7 +115,7 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
                 targetSection = rpxSections.data;
                 targetRelocSection = rpxSections.reladata;
             } else {
-                console.warn(
+                console.error(
                     `Patch of data "${data}" at address 0x${
                         hex(address)
                     } is within the data sections bounds but outside all known patchable data sections (.data & .rodata)`
@@ -123,41 +123,54 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
                 continue;
             }
         } else {
-            console.warn(`Patch of data "${data}" at address 0x${hex(address)} is out of bounds.`);
+            console.error(`Patch of data "${data}" at address 0x${hex(address)} is out of bounds.`);
             continue;
         }
 
-        const relocSize = +targetRelocSection.entSize;
-        const relocData = targetRelocSection.data;
-        let offsets: number[] = [];
-        let low: s32 = 0;
-        let high: s32 = relocData.byteLength / (<number>targetRelocSection.entSize) - 1;
-        while (low <= high) {
-            const mid: s32 = ~~((low + high) / 2);
-            const at: number = mid * relocSize;
-            const val: u32 = (relocData[at]! << 24 | relocData[at+1]! << 16 | relocData[at+2]! << 8 | relocData[at+3]!) >>> 0;
-            if (val < address) low = mid + 1;
-            else if (val > address + 4) high = mid - 1;
-            else {
-                offsets.push(mid * relocSize);
-                break;
-            }
-        }
-        let start = 0;
-        const sink = new DataSink();
-        for (const offset of offsets.sort((a, b) => a - b)) {
-            sink.write(relocData.subarray(start, offset));
-            start = offset + 12;
-        }
-        sink.write(relocData.subarray(start));
-        targetRelocSection.data = sink.end();
-
-        if (data.length % 2) abort(`Data of patch at ${address} of section ${targetSection.name} is not byte aligned: ${data}`);
-
         const dataBytes = Buffer.from(data, 'hex');
-        for (let i = 0; i < dataBytes.byteLength; i++) {
-            targetSection.data![(address - <number>targetSection.addr) + i] = dataBytes[i]!;
+        if (dataBytes.byteLength !== data.length / 2) {
+            console.error(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is malformed: "${data}"`);
+            continue;
         }
+        if (dataBytes.byteLength % 2) {
+            console.error(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is not 2-byte aligned: ${data}`);
+            continue;
+        }
+
+        // Backtrack for overlapping relocation prior to the patch
+        const prerel = targetRelocSection.relocations.get(address - 2);
+        if (prerel && prerel.fieldSize === 4) abort(
+            `Patch of data "${data}" at address 0x${
+                hex(address)
+            } of section ${targetSection.name} is partially overwritten by a 4-byte relocation at 0x${hex(address - 2)}.\n` +
+            `To fix this problem, move the patch to 0x${
+                hex(address - 2)
+            } and prepend to the patch data the relocated value of the 2 bytes before the actual patched bytes.`
+        );
+
+        // Check for overlapping relocations mid-patch
+        for (let i = 0; i <= dataBytes.byteLength - 2; i += 2) {
+            const rel = targetRelocSection.relocations.get(address + i);
+            if (!rel) continue;
+            targetRelocSection.relocations.deleteAt(address + i);
+            if (process.env.TACHYON_DEBUG) console.debug(
+                `Deleted relocation at address 0x${hex(address + i)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
+            );
+        }
+
+        // Check for relocation bleeding beyond the patch
+        const postrel = targetRelocSection.relocations.get(address + dataBytes.byteLength - 2);
+        if (postrel && postrel.fieldSize === 4) abort(
+            `Patch of data "${data}" at address 0x${
+                hex(address)
+            } of section ${targetSection.name} deletes a 4-byte relocation at 0x${
+                hex(address + dataBytes.byteLength - 2)
+            } which partially relocated beyond the patch.\n` +
+            `To fix this problem, append to the patch data the relocated value of the 2 bytes after the actual patched bytes.`
+        );
+
+        // Write the patch data
+        targetSection.data!.set(dataBytes, address - <number>targetSection.addr);
     }
 
     destRPX.shstrSection.addr = destRPX.addressRanges.free.find(([start]) => start >= LoadBaseAddress)![0];

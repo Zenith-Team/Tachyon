@@ -57,7 +57,7 @@ const rpxHash = crc.crc32(rpxData);
 if (rpxHash !== expectedInputRPXHash) {
     abort(`The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}`);
 }
-const rpx = new RPL(rpxData);
+const rpx = new RPL(rpxData, { parseRelocs: true });
 patchRPX(new RPL(oFile), rpx, patches, brand, addrs);
 
 const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');

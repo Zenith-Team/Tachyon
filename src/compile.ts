@@ -123,7 +123,7 @@ console.info('Applying patches...');
 const oFileData = fs.readFileSync(`${path.join(projectPath, project.name)}.o`);
 oFile = new RPL(oFileData);
 const rpxData = fs.readFileSync(vanillaRpxPath);
-const rpx = new RPL(rpxData);
+const rpx = new RPL(rpxData, { parseRelocs: true });
 const patches: Patch[] = project.patches();
 
 patchRPX(oFile, rpx, patches, brand, symbolMap.converter);

@@ -4,6 +4,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 const args = process.argv.slice(2);
 
+declare global {
+    namespace NodeJS {
+        interface ProcessEnv {
+            readonly GHS_ROOT: string | undefined;
+            readonly TACHYON_DEBUG: string | undefined;
+        }
+    }
+}
+
 try {
     // Process commands
     switch (args[0]) {

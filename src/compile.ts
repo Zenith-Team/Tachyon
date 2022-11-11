@@ -8,7 +8,7 @@ import { spawnSync } from 'child_process';
 import { RPL } from 'rpxlib';
 import { patchRPX } from './patchrpx.js';
 import { SymbolMap } from './symbolmap.js';
-import { hex, abort } from './utils.js';
+import { hex, abort, scanAssemlyFileDependencies } from './utils.js';
 
 export let oFile: RPL;
 export let symbolMap: SymbolMap;
@@ -97,17 +97,40 @@ const gbuildArgs = [
 const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectPath, stdio: 'inherit' });
 if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort('gbuild command failed!');
 
-for (const asmfile of project.asmFiles) {
-    console.info('Assembling', asmfile);
+const asppcCommand = path.join(project.ghsPath, 'asppc.exe');
+const asppcIncludeDir = path.join(projectPath, 'include');
+const asmCachePath = path.join(objsPath, '.asm.cache');
+const asmCache: Record<string, number> = fs.existsSync(asmCachePath) ? JSON.parse(fs.readFileSync(asmCachePath, 'utf8')) : {};
+const depCache: Record<string, number> = {};
 
-    const asppcCommand = path.join(project.ghsPath, 'asppc.exe');
+for (const asmfile of project.asmFiles) {
+    const asmfilePath = path.join(projectPath, 'source', asmfile);
+    const asmfileMtime = fs.statSync(asmfilePath).mtimeMs;
+    const deps = scanAssemlyFileDependencies(asmfilePath, asppcIncludeDir);
+    let modifiedDep: string = '';
+
+    if (deps) for (const dep of deps) depCache[dep] = fs.statSync(dep).mtimeMs;
+
+    if (asmfileMtime === asmCache[asmfilePath]) {
+        if (!deps || deps.every(dep => (modifiedDep = dep, asmCache[dep] === depCache[dep]))) {
+            if (process.env.TACHYON_DEBUG) console.debug(`Skipping assembly of ${asmfile} (no changes)`);
+            continue;
+        }
+    }
+    asmCache[asmfilePath] = asmfileMtime;
+
+    console.info(
+        'Assembling', asmfile,
+        modifiedDep ? `because ${path.relative(path.join(projectPath, 'source'), modifiedDep)} has changed` : ''
+    );
     const asppcArgs = [
-        `-I${path.join(projectPath, 'include')}/`, '-o',
-        `${path.join(objsPath, path.basename(asmfile))}.o`, path.join(projectPath, 'source', asmfile)
+        `-I${asppcIncludeDir}/`, '-o',
+        `${path.join(objsPath, path.basename(asmfile))}.o`, asmfilePath
     ];
     const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');
 }
+fs.writeFileSync(asmCachePath, JSON.stringify(Object.assign(asmCache, depCache)));
 
 //*--------------------
 //* Step 3: Link

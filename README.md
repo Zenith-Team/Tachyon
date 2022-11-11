@@ -18,3 +18,6 @@ tachyon --help
 
 ### Environment Variables
 Instead of passing the `--ghs` option to the `compile` command every time, Tachyon supports the `GHS_ROOT` environment variable to permanently store the path to GHS. (Optional)
+
+### Generated Files
+As of version `1.2.4-dev.5`, Tachyon caches Assembly files to avoid needlessly reassembling unmodified files between runs. This cache is currently stored at `<PROJECT_DIR>/objs/.asm.cache`, to clear/invalidate this cache, simply delete said file.

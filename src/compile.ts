@@ -5,10 +5,10 @@ import crc from '@foxglove/crc';
 import { Patch } from './hooks.js';
 import { Project } from './project.js';
 import { spawnSync } from 'child_process';
-import { RPL, WSLSafePath } from 'rpxlib';
+import { RPL } from 'rpxlib';
 import { patchRPX } from './patchrpx.js';
 import { SymbolMap } from './symbolmap.js';
-import { UnixPath, ResolveDrive, WindowsPath, hex, abort } from './utils.js';
+import { hex, abort } from './utils.js';
 
 export let oFile: RPL;
 export let symbolMap: SymbolMap;
@@ -43,10 +43,10 @@ if (!ghsPath) {
     if (process.env.GHS_ROOT) {
         if (process.env.GHS_ROOT.endsWith('/') || process.env.GHS_ROOT.endsWith('\\')) process.env.GHS_ROOT = process.env.GHS_ROOT.slice(0, -1);
         console.warn(`--ghs option not provided! Using path found in GHS_ROOT environment variable: ${process.env.GHS_ROOT}`);
-        ghsPath = WSLSafePath(process.env.GHS_ROOT);
+        ghsPath = process.env.GHS_ROOT;
     } else {
-        const defaultGhsPath = WSLSafePath('C:/ghs/multi5327');
-        console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${WindowsPath(defaultGhsPath)}`);
+        const defaultGhsPath = 'C:/ghs/multi5327';
+        console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${defaultGhsPath}`);
         ghsPath = defaultGhsPath;
     }
 }
@@ -55,11 +55,11 @@ if (
 ) abort('The given RPX path is invalid. File must have extension .rpx or .elf');
 if (outpath) {
     if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
-    outpath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(outpath))));
+    outpath = path.resolve(cwd, outpath);
 }
-vanillaRpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(vanillaRpxPath))));
-projectPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(projectPath))));
-ghsPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(ghsPath))));
+vanillaRpxPath = path.resolve(cwd, vanillaRpxPath);
+projectPath = path.resolve(cwd, projectPath);
+ghsPath = path.resolve(cwd, ghsPath);
 
 if (!fs.existsSync(vanillaRpxPath))                                   abort('Path to vanilla RPX does not exist!');
 if (!fs.existsSync(projectPath))                                      abort('Project path folder does not exist!');
@@ -102,8 +102,8 @@ for (const asmfile of project.asmFiles) {
 
     const asppcCommand = path.join(project.ghsPath, 'asppc.exe');
     const asppcArgs = [
-        `-I${WindowsPath(path.join(projectPath, 'include'))}/`, '-o',
-        `${WindowsPath(path.join(objsPath, path.basename(asmfile)))}.o`, WindowsPath(path.join(projectPath, 'source', asmfile))
+        `-I${path.join(projectPath, 'include')}/`, '-o',
+        `${path.join(objsPath, path.basename(asmfile))}.o`, path.join(projectPath, 'source', asmfile)
     ];
     const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');

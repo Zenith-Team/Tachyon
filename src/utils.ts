@@ -30,27 +30,30 @@ export function hex(num: number, pad: number = 8, prefix = ''): string {
 
 /**
  * Convert absolute WSL path to Windows path, if possible. Otherwise return the path unchanged.
+ * @deprecated
  */
-export function WindowsPath(path: string) {
-    return path.replace(/^\/mnt\/([a-z])\//, ($0, $1: string) => `${$1.toUpperCase()}:/`);
-}
+//export function WindowsPath(path: string) {
+//    return path.replace(/^\/mnt\/([a-z])\//, ($0, $1: string) => `${$1.toUpperCase()}:/`);
+//}
 
 /**
  * Convert absolute Windows path to WSL path, if possible. Otherwise return the path unchanged.
  *
  * Unconditionally changes all backslashes to forward slashes, if any.
+ * @deprecated
  */
-export function UnixPath(path: string) {
-    path = path.replaceAll('\\', '/');
-    if (path[1] === ':') path = `/___drive___${path[0]}${path.slice(2)}`;
-    return path;
-}
+//export function UnixPath(path: string) {
+//    path = path.replaceAll('\\', '/');
+//    if (path[1] === ':') path = `/___drive___${path[0]}${path.slice(2)}`;
+//    return path;
+//}
 
 /**
  * For use with UnixPath output
+ * @deprecated
  */
-export function ResolveDrive(path: string) {
-    if (!path.startsWith('/___drive___')) return path;
-    const drive = path[12];
-    return `${drive}:${path.slice(13)}`;
-}
+//export function ResolveDrive(path: string) {
+//    if (!path.startsWith('/___drive___')) return path;
+//    const drive = path[12];
+//    return `${drive}:${path.slice(13)}`;
+//}

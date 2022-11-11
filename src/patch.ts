@@ -1,7 +1,7 @@
 import { Patch } from './hooks.js';
 import { patchRPX } from './patchrpx.js';
-import { RPL, WSLSafePath } from 'rpxlib';
-import { abort, hex, ResolveDrive, UnixPath } from './utils.js';
+import { RPL } from 'rpxlib';
+import { abort, hex } from './utils.js';
 import crc from '@foxglove/crc';
 import path from 'path';
 import zlib from 'zlib';
@@ -22,10 +22,10 @@ if (!patchFilePath) abort('No patch file provided! The --patch option is require
 if (!rpxPath) abort('No base RPX file provided! The --rpx option is required.');
 if (outpath) {
     if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
-    outpath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(outpath))));
+    outpath = path.resolve(cwd, outpath);
 }
-patchFilePath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(patchFilePath))));
-rpxPath = WSLSafePath(ResolveDrive(path.resolve(cwd, UnixPath(rpxPath))));
+patchFilePath = path.resolve(cwd, patchFilePath);
+rpxPath = path.resolve(cwd, rpxPath);
 
 let patchFile = Buffer.from(fs.readFileSync(patchFilePath));
 try {

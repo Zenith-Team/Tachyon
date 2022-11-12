@@ -1,7 +1,6 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import { CodeBaseAddress, DataBaseAddress, LoadBaseAddress, Section, Util } from 'rpxlib';
-import yaml from 'yaml';
 import { abort, hex, s32, u32 } from './utils.js';
 
 export interface CSymbol {
@@ -9,24 +8,14 @@ export interface CSymbol {
     address: u32;
 }
 
-interface OffsetYAML {
-    from?: string;
-    until?: string;
-    add?: string;
-}
-
-interface ConvMapYAML {
-    Offsets: OffsetYAML[];
-}
-
-interface Offset {
+interface ConvOffset {
     from: u32;
     until: u32;
-    add: u32;
+    value: u32;
 }
 
 export class ConvMap {
-    constructor(yaml: ConvMapYAML, rpxsections: readonly Section[]) {
+    constructor(offsets: ConvOffset[], rpxsections: readonly Section[]) {
         for (let i = 0; i < rpxsections.length; i++) {
             const section = rpxsections[i]!;
             if (+section.addr === 0) continue;
@@ -36,18 +25,13 @@ export class ConvMap {
             else if (end >= LoadBaseAddress && end > this.syms) this.syms = end;
         }
 
-        for (const offsetyml of yaml.Offsets) {
-            (<Offset><unknown>offsetyml).from = Number(offsetyml.from);
-            (<Offset><unknown>offsetyml).until = Number(offsetyml.until);
-            (<Offset><unknown>offsetyml).add = Number(offsetyml.add);
-            this.offsets.push(<Offset><unknown>offsetyml);
-        }
+        this.#offsets = offsets;
     }
 
     public convert(address: u32): u32 {
-        for (const offset of this.offsets) {
+        for (const offset of this.#offsets) {
             if (address >= offset.from && address < offset.until) {
-                return address + offset.add;
+                return address + offset.value;
             }
         }
         return address;
@@ -56,7 +40,7 @@ export class ConvMap {
     public text: u32 = 0;
     public data: u32 = 0;
     public syms: u32 = 0;
-    private offsets: Offset[] = [];
+    #offsets: ConvOffset[] = [];
 }
 
 export class SymbolMap {
@@ -97,10 +81,22 @@ export class SymbolMap {
 
         // Convert
         try {
-            const convyaml: ConvMapYAML = yaml.parse(fs.readFileSync(path.join(projectPath, 'conv', region) + '.yaml', 'utf8'));
-            this.converter = new ConvMap(convyaml, rpxsections);
+            const offsetsFile = fs.readFileSync(path.join(projectPath, 'conv', region) + '.offsets', 'utf8');
+            let linenum = 0;
+            let offsets: ConvOffset[] = [];
+            for (const lineRaw of offsetsFile.split('\n')) {
+                linenum++;
+                const line = lineRaw.trim();
+                if (!line || line[0] === '#' || line.startsWith('//')) continue;
+                const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
+                const match = regex.exec(line);
+                if (!match) abort(`Failed to parse line ${linenum} in ${region}.offsets`);
+                const [_, from, until, sign, value] = match;
+                offsets.push({ from: Number('0x'+from), until: Number('0x'+until), value: sign === '-' ? -Number(value) : Number(value) });
+            }
+            this.converter = new ConvMap(offsets, rpxsections);
         } catch {
-            abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}.yaml`);
+            abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}`);
         }
 
         this.convertedLines.push('SECTIONS {');

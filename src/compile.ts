@@ -61,14 +61,14 @@ vanillaRpxPath = path.resolve(cwd, vanillaRpxPath);
 projectPath = path.resolve(cwd, projectPath);
 ghsPath = path.resolve(cwd, ghsPath);
 
-if (!fs.existsSync(vanillaRpxPath))                                   abort('Path to vanilla RPX does not exist!');
-if (!fs.existsSync(projectPath))                                      abort('Project path folder does not exist!');
-if (!fs.existsSync(path.join(projectPath, 'project.yaml')))           abort('Project folder does not have a project.yaml!');
-if (!fs.existsSync(path.join(projectPath, 'syms')))                   abort('Project folder does not have a "syms" folder!');
-if (!fs.existsSync(path.join(projectPath, 'syms', 'main.map')))       abort('Project symbols folder does not have a main.map file!');
-if (!fs.existsSync(path.join(projectPath, 'conv')))                   abort('Project folder does not have a "conv" folder!');
-if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.yaml`))) abort(`Conversion map for region ${region} not found!`);
-if (!fs.existsSync(path.join(projectPath, 'linker')))                 fs.mkdirSync(path.join(projectPath, 'linker'));
+if (!fs.existsSync(vanillaRpxPath))                                      abort('Path to vanilla RPX does not exist!');
+if (!fs.existsSync(projectPath))                                         abort('Project path folder does not exist!');
+if (!fs.existsSync(path.join(projectPath, 'project.yaml')))              abort('Project folder does not have a project.yaml!');
+if (!fs.existsSync(path.join(projectPath, 'syms')))                      abort('Project folder does not have a "syms" folder!');
+if (!fs.existsSync(path.join(projectPath, 'syms', 'main.map')))          abort('Project symbols folder does not have a main.map file!');
+if (!fs.existsSync(path.join(projectPath, 'conv')))                      abort('Project folder does not have a "conv" folder!');
+if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.offsets`))) abort(`Conversion map for region ${region} not found!`);
+if (!fs.existsSync(path.join(projectPath, 'linker')))                    fs.mkdirSync(path.join(projectPath, 'linker'));
 
 const timer = performance.now();
 

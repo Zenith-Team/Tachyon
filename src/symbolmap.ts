@@ -14,8 +14,14 @@ interface ConvOffset {
     value: u32;
 }
 
+interface ConvAddrs {
+    TextAddr: u32 | null;
+    DataAddr: u32 | null;
+    SymsAddr: u32 | null;
+}
+
 export class ConvMap {
-    constructor(offsets: ConvOffset[], rpxsections: readonly Section[]) {
+    constructor(offsets: ConvOffset[], addrs: ConvAddrs, rpxsections: readonly Section[]) {
         for (let i = 0; i < rpxsections.length; i++) {
             const section = rpxsections[i]!;
             if (+section.addr === 0) continue;
@@ -24,6 +30,10 @@ export class ConvMap {
             else if (end >= DataBaseAddress && end < LoadBaseAddress && end > this.data) this.data = end;
             else if (end >= LoadBaseAddress && end > this.syms) this.syms = end;
         }
+        // Console overrides
+        if (addrs.TextAddr !== null) this.text = addrs.TextAddr;
+        if (addrs.DataAddr !== null) this.data = addrs.DataAddr;
+        if (addrs.SymsAddr !== null) this.syms = addrs.SymsAddr;
 
         this.#offsets = offsets;
     }
@@ -82,19 +92,30 @@ export class SymbolMap {
         // Convert
         try {
             const offsetsFile = fs.readFileSync(path.join(projectPath, 'conv', region) + '.offs', 'utf8');
-            let linenum = 0;
+            const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
+            let addrs: ConvAddrs = { TextAddr: null, DataAddr: null, SymsAddr: null };
             let offsets: ConvOffset[] = [];
+            let linenum: number = 0;
             for (const lineRaw of offsetsFile.split('\n')) {
                 linenum++;
                 const line = lineRaw.trim();
                 if (!line || line[0] === '#' || line.startsWith('//')) continue;
-                const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
+                const split = line.split('=');
+                if (split.length === 2) {
+                    const label = split[0]!.trim();
+                    const value = Number(split[1]!.trim());
+                    if (label in addrs) {
+                        if (Number.isNaN(value)) abort(`Invalid value for ${label} at line ${linenum} of ${region}.offs`);
+                        addrs[label as keyof typeof addrs] = value;
+                        continue;
+                    } else abort(`Unknown label ${label} at line ${linenum} of ${region}.offs`);
+                }
                 const match = regex.exec(line);
                 if (!match) abort(`Failed to parse line ${linenum} in ${region}.offs`);
                 const [_, from, until, sign, value] = match;
                 offsets.push({ from: Number('0x'+from), until: Number('0x'+until), value: sign === '-' ? -Number(value) : Number(value) });
             }
-            this.converter = new ConvMap(offsets, rpxsections);
+            this.converter = new ConvMap(offsets, addrs, rpxsections);
         } catch {
             abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}`);
         }

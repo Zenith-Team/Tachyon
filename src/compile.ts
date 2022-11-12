@@ -115,7 +115,6 @@ for (const asmfile of project.asmFiles) {
 
     if (asmfileMtime === asmCache[asmfilePath]) {
         if (!deps || deps.every(dep => (modifiedDep = dep, asmCache[dep] === depCache[dep]))) {
-            if (process.env.TACHYON_DEBUG) console.debug(`Skipping assembly of ${asmfile} (no changes)`);
             continue;
         }
     }

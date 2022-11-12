@@ -46,12 +46,11 @@ Valid commands:
 
 [Command specific options]
 compile
-    -R, --region <string>  Region of the vanilla RPX provided.
-    -r, --rpx <path>       Path to vanilla RPX file to use as base.
+    -R, --region <string>  Region of the base RPX provided.
     -p, --project <path>   Path to custom code project root folder. (default: "./") *
     -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327") *
-    -o, --out <path>       Path to save the output file to. (default: next to vanilla rpx) *
-    -b, --brand <string>   Cosmetic text to differ the output file from vanilla. (default: "custom") *
+    -o, --out <path>       Path to save the output file to. (default: next to base rpx) *
+    -b, --brand <string>   Cosmetic text to differ the output file from base. (default: "custom") *
     -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX. *
                            
 

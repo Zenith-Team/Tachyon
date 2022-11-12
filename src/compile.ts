@@ -15,7 +15,6 @@ export let symbolMap: SymbolMap;
 
 const cwd = process.cwd();
 const args = process.argv.slice(2);
-let vanillaRpxPath: string | undefined;
 let projectPath: string | undefined;
 let ghsPath: string | undefined;
 let region: string | undefined;
@@ -24,8 +23,7 @@ let brand: string = 'custom';
 let prod: boolean = false;
 
 args.forEach((arg, i) => {
-    if      (arg === '--rpx'     || arg === '-r') vanillaRpxPath = args[i + 1];
-    else if (arg === '--project' || arg === '-p') projectPath    = args[i + 1];
+    if      (arg === '--project' || arg === '-p') projectPath    = args[i + 1];
     else if (arg === '--ghs'     || arg === '-g') ghsPath        = args[i + 1];
     else if (arg === '--region'  || arg === '-R') region         = args[i + 1];
     else if (arg === '--out'     || arg === '-o') outpath        = args[i + 1];
@@ -34,7 +32,6 @@ args.forEach((arg, i) => {
 });
 
 if (!region) abort('No region specified! The --region option is required.');
-if (!vanillaRpxPath) abort(`No RPX provided! The --rpx option is required.`);
 if (!projectPath) {
     console.warn(`--project option not provided! Assuming current folder as project folder: ${cwd}`);
     projectPath = cwd;
@@ -50,18 +47,15 @@ if (!ghsPath) {
         ghsPath = defaultGhsPath;
     }
 }
-if (
-    !vanillaRpxPath.endsWith('.rpx') && !vanillaRpxPath.endsWith('.elf')
-) abort('The given RPX path is invalid. File must have extension .rpx or .elf');
 if (outpath) {
     if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
     outpath = path.resolve(cwd, outpath);
 }
-vanillaRpxPath = path.resolve(cwd, vanillaRpxPath);
 projectPath = path.resolve(cwd, projectPath);
 ghsPath = path.resolve(cwd, ghsPath);
+const baseRpxPath = path.join(projectPath, 'rpxs', `${region}.rpx`);
 
-if (!fs.existsSync(vanillaRpxPath))                                      abort('Path to vanilla RPX does not exist!');
+if (!fs.existsSync(baseRpxPath))                                         abort(`Base RPX for ${region} does not exist!`);
 if (!fs.existsSync(projectPath))                                         abort('Project path folder does not exist!');
 if (!fs.existsSync(path.join(projectPath, 'project.yaml')))              abort('Project folder does not have a project.yaml!');
 if (!fs.existsSync(path.join(projectPath, 'syms')))                      abort('Project folder does not have a "syms" folder!');
@@ -76,7 +70,7 @@ const timer = performance.now();
 //* Step 1: Parse project
 //*--------------------
 console.info('Parsing project...');
-const rpxData = fs.readFileSync(vanillaRpxPath);
+const rpxData = fs.readFileSync(baseRpxPath);
 const rpx = new RPL(rpxData, { parseRelocs: true });
 
 symbolMap = new SymbolMap(projectPath, region, rpx.sections);
@@ -155,7 +149,7 @@ patchRPX(oFile, rpx, patches, brand, symbolMap.converter);
 //*--------------------
 console.info('Saving RPX...');
 
-const defaultSavePath = vanillaRpxPath.split('.').slice(0, -1).join('.');
+const defaultSavePath = baseRpxPath.split('.').slice(0, -1).join('.');
 const savePath = outpath ? path.join(outpath, path.basename(defaultSavePath)) : defaultSavePath;
 const savedTo = rpx.save(`${savePath}.${brand}`, prod);
 console.info(`Saved RPX to: ${savedTo}`);
@@ -183,7 +177,7 @@ if (prod) {
         oFileData    // 0x20 + (value at 0x10) + (value at 0x14): u8[]
     ]), { memLevel: 9, level: 9 });
 
-    const patchFilePath = path.join(outpath || path.dirname(vanillaRpxPath), `${project.name}-${region}.typf`);
+    const patchFilePath = path.join(outpath || path.dirname(baseRpxPath), `${project.name}-${region}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);
     console.info('[PROD] Saved patch file to:', patchFilePath);
 }

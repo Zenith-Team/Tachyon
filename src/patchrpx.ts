@@ -153,9 +153,9 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
             const rel = targetRelocSection.relocations.get(address + i);
             if (!rel) continue;
             targetRelocSection.relocations.deleteAt(address + i);
-            if (process.env.TACHYON_DEBUG) console.debug(
-                `Deleted relocation at address 0x${hex(address + i)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
-            );
+            //if (process.env.TACHYON_DEBUG) console.debug(
+            //    `Deleted relocation at address 0x${hex(address + i)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
+            //);
         }
 
         // Check for relocation bleeding beyond the patch

@@ -31,7 +31,7 @@ export class ConvMap {
     public convert(address: u32): u32 {
         for (const offset of this.#offsets) {
             if (address >= offset.from && address < offset.until) {
-                return address + offset.value;
+                address += offset.value;
             }
         }
         return address;
@@ -81,7 +81,7 @@ export class SymbolMap {
 
         // Convert
         try {
-            const offsetsFile = fs.readFileSync(path.join(projectPath, 'conv', region) + '.offsets', 'utf8');
+            const offsetsFile = fs.readFileSync(path.join(projectPath, 'conv', region) + '.offs', 'utf8');
             let linenum = 0;
             let offsets: ConvOffset[] = [];
             for (const lineRaw of offsetsFile.split('\n')) {
@@ -90,7 +90,7 @@ export class SymbolMap {
                 if (!line || line[0] === '#' || line.startsWith('//')) continue;
                 const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
                 const match = regex.exec(line);
-                if (!match) abort(`Failed to parse line ${linenum} in ${region}.offsets`);
+                if (!match) abort(`Failed to parse line ${linenum} in ${region}.offs`);
                 const [_, from, until, sign, value] = match;
                 offsets.push({ from: Number('0x'+from), until: Number('0x'+until), value: sign === '-' ? -Number(value) : Number(value) });
             }

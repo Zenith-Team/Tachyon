@@ -67,7 +67,7 @@ if (!fs.existsSync(path.join(projectPath, 'project.yaml')))              abort('
 if (!fs.existsSync(path.join(projectPath, 'syms')))                      abort('Project folder does not have a "syms" folder!');
 if (!fs.existsSync(path.join(projectPath, 'syms', 'main.map')))          abort('Project symbols folder does not have a main.map file!');
 if (!fs.existsSync(path.join(projectPath, 'conv')))                      abort('Project folder does not have a "conv" folder!');
-if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.offsets`))) abort(`Conversion map for region ${region} not found!`);
+if (!fs.existsSync(path.join(projectPath, 'conv', `${region}.offs`)))    abort(`Conversion map for region ${region} not found!`);
 if (!fs.existsSync(path.join(projectPath, 'linker')))                    fs.mkdirSync(path.join(projectPath, 'linker'));
 
 const timer = performance.now();

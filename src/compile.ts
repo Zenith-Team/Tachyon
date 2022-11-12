@@ -8,7 +8,7 @@ import { spawnSync } from 'child_process';
 import { RPL } from 'rpxlib';
 import { patchRPX } from './patchrpx.js';
 import { SymbolMap } from './symbolmap.js';
-import { hex, abort, scanAssemlyFileDependencies } from './utils.js';
+import { abort, scanAssemlyFileDependencies } from './utils.js';
 
 export let oFile: RPL;
 export let symbolMap: SymbolMap;
@@ -76,10 +76,12 @@ const timer = performance.now();
 //* Step 1: Parse project
 //*--------------------
 console.info('Parsing project...');
-symbolMap = new SymbolMap(projectPath, region);
+const rpxData = fs.readFileSync(vanillaRpxPath);
+const rpx = new RPL(rpxData, { parseRelocs: true });
+
+symbolMap = new SymbolMap(projectPath, region, rpx.sections);
 
 const project = new Project(projectPath, ghsPath);
-project.defines.push('DATA_ADDR=0x' + hex(symbolMap.converter.data));
 project.createGPJ();
 
 //*--------------------
@@ -145,8 +147,6 @@ console.info('Applying patches...');
 
 const oFileData = fs.readFileSync(`${path.join(projectPath, project.name)}.o`);
 oFile = new RPL(oFileData);
-const rpxData = fs.readFileSync(vanillaRpxPath);
-const rpx = new RPL(rpxData, { parseRelocs: true });
 const patches: Patch[] = project.patches();
 
 patchRPX(oFile, rpx, patches, brand, symbolMap.converter);

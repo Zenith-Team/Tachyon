@@ -1,5 +1,6 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import { CodeBaseAddress, DataBaseAddress, LoadBaseAddress, Section, Util } from 'rpxlib';
 import yaml from 'yaml';
 import { abort, hex, s32, u32 } from './utils.js';
 
@@ -15,9 +16,6 @@ interface OffsetYAML {
 }
 
 interface ConvMapYAML {
-    TextSection: string;
-    DataSection: string;
-    SymsSection: string;
     Offsets: OffsetYAML[];
 }
 
@@ -28,10 +26,15 @@ interface Offset {
 }
 
 export class ConvMap {
-    constructor(yaml: ConvMapYAML) {
-        this.text = Number(yaml.TextSection);
-        this.data = Number(yaml.DataSection);
-        this.syms = Number(yaml.SymsSection);
+    constructor(yaml: ConvMapYAML, rpxsections: readonly Section[]) {
+        for (let i = 0; i < rpxsections.length; i++) {
+            const section = rpxsections[i]!;
+            if (+section.addr === 0) continue;
+            const end = Util.roundUp(<number>section.addr + <number>section.size, +section.addrAlign);
+            if      (end >= CodeBaseAddress && end < DataBaseAddress && end > this.text) this.text = end;
+            else if (end >= DataBaseAddress && end < LoadBaseAddress && end > this.data) this.data = end;
+            else if (end >= LoadBaseAddress && end > this.syms) this.syms = end;
+        }
 
         for (const offsetyml of yaml.Offsets) {
             (<Offset><unknown>offsetyml).from = Number(offsetyml.from);
@@ -50,14 +53,14 @@ export class ConvMap {
         return address;
     }
 
-    public text: u32;
-    public data: u32;
-    public syms: u32;
+    public text: u32 = 0;
+    public data: u32 = 0;
+    public syms: u32 = 0;
     private offsets: Offset[] = [];
 }
 
 export class SymbolMap {
-    constructor(projectPath: string, region: string) {
+    constructor(projectPath: string, region: string, rpxsections: readonly Section[]) {
         const lines: string[] = fs.readFileSync(path.join(projectPath, 'syms', 'main.map'), 'utf8').split('\n');
         let symbols: CSymbol[] = [];
 
@@ -95,7 +98,7 @@ export class SymbolMap {
         // Convert
         try {
             const convyaml: ConvMapYAML = yaml.parse(fs.readFileSync(path.join(projectPath, 'conv', region) + '.yaml', 'utf8'));
-            this.converter = new ConvMap(convyaml);
+            this.converter = new ConvMap(convyaml, rpxsections);
         } catch {
             abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}.yaml`);
         }

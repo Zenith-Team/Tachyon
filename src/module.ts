@@ -14,7 +14,7 @@ interface ModuleYAML {
 export class Module {
     constructor(yamlPath: string) {
         try {
-            const yaml: ModuleYAML = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8'));
+            const yaml = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8')) as ModuleYAML;
 
             for (const file of yaml.Files) {
                 if      (file.endsWith('.cpp')) this.cppFiles.push(file);

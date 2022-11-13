@@ -13,6 +13,7 @@ declare global {
     }
 }
 
+/* eslint-disable no-fallthrough */
 try {
     // Process commands
     switch (args[0]) {
@@ -33,8 +34,7 @@ try {
 }
 
 if (args.includes('-h') || args.includes('--help')) {
-    console.info(
-`Usage: tachyon [flags] <command> [command specific options]
+    console.info(`Usage: tachyon [flags] <command> [command specific options]
 
 Valid flags:
     -h, --help             Show this message.
@@ -60,7 +60,9 @@ patch <base_rpx_path> <patch_file_path>
 
 if (args.includes('-v') || args.includes('--version')) {
     try {
-        const { version } = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
+        const { version } = JSON.parse(
+            fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
+        ) as { version: string };
         console.info(`Tachyon v${version}`);
     } catch {
         console.error('Failed to get version.');

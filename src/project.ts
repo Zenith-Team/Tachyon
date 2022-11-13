@@ -36,7 +36,7 @@ export class Project {
         this.ghsPath = ghsPath;
 
         try {
-            const yaml: ProjectYAML = yamlLib.parse(fs.readFileSync(path.join(metaPath, 'project.yaml'), 'utf8'));
+            const yaml = yamlLib.parse(fs.readFileSync(path.join(metaPath, 'project.yaml'), 'utf8')) as ProjectYAML;
             
             this.name = yaml.Name;
             yaml.ModulesDir ??= 'modules';
@@ -83,7 +83,7 @@ export class Project {
                 this.targetAddrMap = tgt.AddrMap;
                 this.targetBaseRpx = tgt.BaseRpx;
             } else abort(`Target ${target} not found on project.yaml!`);
-        } catch (err) {
+        } catch {
             abort('Invalid project.yaml!');
         }
 
@@ -105,8 +105,7 @@ export class Project {
             }
         }
         const gpj: string[] = [];
-        gpj.push(
-`#!gbuild
+        gpj.push(`#!gbuild
 primaryTarget=ppc_cos_ndebug.tgt
 [Project]
 \t-object_dir=objs
@@ -138,8 +137,7 @@ primaryTarget=ppc_cos_ndebug.tgt
     }
 
     public link(map: SymbolMap): void {
-        fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld',
-`MEMORY {
+        fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld', `MEMORY {
 \ttext : origin = 0x${hex(map.converter.text)}, length = 0x${hex(DataBaseAddress - map.converter.text)}
 \tdata : origin = 0x${hex(map.converter.data)}, length = 0x${hex(LoadBaseAddress - map.converter.data)}
 }

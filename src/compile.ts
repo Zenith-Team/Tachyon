@@ -102,7 +102,7 @@ if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort
 const asppcCommand = path.join(project.ghsPath, 'asppc.exe');
 const asppcIncludeDir = project.includeDir;
 const asmCachePath = path.join(objsPath, '.asm.cache');
-const asmCache: Record<string, number> = fs.existsSync(asmCachePath) ? JSON.parse(fs.readFileSync(asmCachePath, 'utf8')) : {};
+const asmCache = fs.existsSync(asmCachePath) ? <Record<string, number>>JSON.parse(fs.readFileSync(asmCachePath, 'utf8')) : {};
 const depCache: Record<string, number> = {};
 
 for (const asmfile of project.asmFiles) {

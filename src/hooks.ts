@@ -87,7 +87,7 @@ export class ReturnValueHook extends Hook {
     }
 
     returnValue: string;
-};
+}
 
 export class ReturnHook extends Hook {
     constructor(yaml: HookYAML) {

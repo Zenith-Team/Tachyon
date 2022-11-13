@@ -84,7 +84,7 @@ export class SymbolMap {
                         break;
                     }
                 }
-                if (!success) abort(`Unable to locate literal address for symbol: ${parts[1]}`);
+                if (!success) abort(`Unable to locate literal address for symbol: ${parts[1]!}`);
             }
             symbols.push(sym);
         }
@@ -112,8 +112,8 @@ export class SymbolMap {
                 }
                 const match = regex.exec(line);
                 if (!match) abort(`Failed to parse line ${linenum} in ${targetAddrMap}.offs`);
-                const [_, from, until, sign, value] = match;
-                offsets.push({ from: Number('0x'+from), until: Number('0x'+until), value: sign === '-' ? -Number(value) : Number(value) });
+                const [, from, until, sign, value] = match;
+                offsets.push({ from: Number('0x'+from!), until: Number('0x'+until!), value: sign === '-' ? -Number(value) : Number(value) });
             }
             this.converter = new ConvMap(offsets, addrs, rpxsections);
         } catch {
@@ -123,7 +123,7 @@ export class SymbolMap {
         this.convertedLines.push('SECTIONS {');
 
         for (const symbol of symbols) {
-            symbol.address = this.converter.convert(symbol.address!);
+            symbol.address = this.converter.convert(symbol.address);
             this.convertedLines.push(`\t${symbol.name} = 0x${hex(symbol.address)};`);
             this.symbols.push({ name: symbol.name, address: symbol.address });
         }

@@ -39,12 +39,12 @@ const addrs = {
     syms: patchFile.readUint32BE(0x4),
     text: patchFile.readUint32BE(0x8),
     data: patchFile.readUint32BE(0xC),
-}
+};
 const patchesDataSize = patchFile.readUint32BE(0x10);
 const brandDataSize = patchFile.readUint32BE(0x14);
 const expectedInputRPXHash = patchFile.readUint32BE(0x18);
 const expectedOutputRPXHash = patchFile.readUint32BE(0x1C);
-const patches: Patch[] = JSON.parse(decoder.decode(patchFile.subarray(DYNAMIC_OFFSET, DYNAMIC_OFFSET + patchesDataSize)));
+const patches = JSON.parse(decoder.decode(patchFile.subarray(DYNAMIC_OFFSET, DYNAMIC_OFFSET + patchesDataSize))) as Patch[];
 const brand: string = decoder.decode(patchFile.subarray(DYNAMIC_OFFSET + patchesDataSize, DYNAMIC_OFFSET + patchesDataSize + brandDataSize));
 const oFile = patchFile.subarray(DYNAMIC_OFFSET + patchesDataSize + brandDataSize);
 

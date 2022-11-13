@@ -104,56 +104,55 @@ export class Project {
                 this.asmFiles.push(file);
             }
         }
+        const gpj: string[] = [];
+        gpj.push(
+`#!gbuild
+primaryTarget=ppc_cos_ndebug.tgt
+[Project]
+\t-object_dir=objs
+\t--no_commons
+\t-c99
+\t-only_explicit_reg_use
+\t--g++
+\t--link_once_templates
+\t-cpu=espresso
+\t-sda=none
+\t-kanji=shiftjis
+\t--no_exceptions
+\t--no_rtti
+\t--no_implicit_include
+\t--implicit_typename
+\t--diag_suppress 1931,1974,1822,381
+\t--enable_noinline
+\t-Ospeed
+\t-no_ansi_alias
+\t--max_inlining
+\t-Onounroll
+\t-MD
+\t-I${path.relative(this.meta, this.includeDir)}`
+        );
 
-        this.gpj.push('#!gbuild'
-                    , 'primaryTarget=ppc_cos_ndebug.tgt'
-                    , '[Project]'
-                    , `\t-object_dir=objs`
-                    , '\t--no_commons'
-                    , '\t-c99'
-                    , '\t-only_explicit_reg_use'
-                    , '\t--g++'
-                    , '\t--link_once_templates'
-                    , '\t-cpu=espresso'
-                    , '\t-sda=none'
-                    , '\t-kanji=shiftjis'
-                    , '\t--no_exceptions'
-                    , '\t--no_rtti'
-                    , '\t--no_implicit_include'
-                    , '\t--implicit_typename'
-                    , '\t--diag_suppress 1931,1974,1822,381'
-                    , '\t--enable_noinline'
-                    , '\t-Ospeed'
-                    , '\t-no_ansi_alias'
-                    , '\t--max_inlining'
-                    , '\t-Onounroll'
-                    , '\t-MD'
-                    , `\t-I${path.relative(this.meta, this.includeDir)}`);
-
-        for (const define of this.defines) this.gpj.push('\t-D' + define);
-        for (const cpp of this.cppFiles)   this.gpj.push(path.relative(this.meta, this.sourceDir).replaceAll('\\', '/') + '/' + cpp);
-
-        fs.writeFileSync(path.join(this.meta, 'project.gpj'), this.gpj.join('\n'));
+        for (const define of this.defines) gpj.push(`\t-D${define}`);
+        for (const cpp of this.cppFiles)   gpj.push(path.join(path.relative(this.meta, this.sourceDir), cpp));
+        fs.writeFileSync(path.join(this.meta, 'project.gpj'), gpj.join('\n'));
     }
 
     public link(map: SymbolMap): void {
-        let linkerDirective: string[] = [];
+        fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld',
+`MEMORY {
+\ttext : origin = 0x${hex(map.converter.text)}, length = 0x${hex(DataBaseAddress - map.converter.text)}
+\tdata : origin = 0x${hex(map.converter.data)}, length = 0x${hex(LoadBaseAddress - map.converter.data)}
+}
 
-        linkerDirective.push('MEMORY {'
-                           , '\ttext : origin = 0x' + hex(map.converter.text)
-                           + ', length = 0x' + hex(DataBaseAddress - map.converter.text)
-                           , '\tdata : origin = 0x' + hex(map.converter.data)
-                           + ', length = 0x' + hex(LoadBaseAddress - map.converter.data)
-                           , '}'
-                           , '\nOPTION("-append")'
-                           , '\nSECTIONS {'
-                           , '\t.text   : > text'
-                           , '\t.rodata : > data'
-                           , '\t.data   : > data'
-                           , '\t.bss    : > data'
-                           , '}');
+OPTION("-append")
 
-        fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld', linkerDirective.join('\n'));
+SECTIONS {
+\t.text   : > text
+\t.rodata : > data
+\t.data   : > data
+\t.bss    : > data
+}`
+        );
 
         const elxrCommand = path.join(this.ghsPath, 'elxr.exe');
         let elxrArgs = [
@@ -196,5 +195,4 @@ export class Project {
     targetBaseRpx: string;
     cppFiles: string[] = [];
     asmFiles: string[] = [];
-    gpj: string[] = [];
 }

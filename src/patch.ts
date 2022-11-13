@@ -8,24 +8,20 @@ import zlib from 'zlib';
 import fs from 'fs';
 
 const cwd = process.cwd();
-const args = process.argv.slice(2);
-let patchFilePath: string | undefined;
-let rpxPath: string | undefined;
+let [rpxPath, patchFilePath, ...args] = process.argv.slice(2);
 let outpath: string | undefined;
 
 args.forEach((arg, i) => {
-    if (arg === '--patch' || arg === '-p') patchFilePath = args[i + 1];
-    if (arg === '--rpx'   || arg === '-r') rpxPath       = args[i + 1];
-    if (arg === '--out'   || arg === '-o') outpath       = args[i + 1];
+    if (arg === '--out'   || arg === '-o') outpath = args[i + 1];
 });
-if (!patchFilePath) abort('No patch file provided! The --patch option is required.');
-if (!rpxPath) abort('No base RPX file provided! The --rpx option is required.');
+if (!rpxPath || rpxPath[0] === '-') abort('No base RPX file provided! The first positional argument must be the path to the base RPX to patch.');
+if (!patchFilePath || patchFilePath[0] === '-') abort('No patch file provided! The second positional argument must be the path to the Tachyon patch file to apply.');
 if (outpath) {
     if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
     outpath = path.resolve(cwd, outpath);
 }
-patchFilePath = path.resolve(cwd, patchFilePath);
 rpxPath = path.resolve(cwd, rpxPath);
+patchFilePath = path.resolve(cwd, patchFilePath);
 
 let patchFile = Buffer.from(fs.readFileSync(patchFilePath));
 try {

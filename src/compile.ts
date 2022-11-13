@@ -14,28 +14,27 @@ export let oFile: RPL;
 export let symbolMap: SymbolMap;
 
 const cwd = process.cwd();
-const args = process.argv.slice(2);
+const [target, ...args] = process.argv.slice(2);
+if (!target || target[0] === '-') abort('No target specified! The target is a positional argument and must precede all options and flags.');
+
 let projectPath: string | undefined;
-let ghsPath: string | undefined;
-let target: string | undefined;
-let outpath: string | undefined;
 let metaFolderName: string | undefined;
+let ghsPath: string | undefined;
+let outpath: string | undefined;
 let prod: boolean = false;
 
 args.forEach((arg, i) => {
     if      (arg === '--project' || arg === '-p') projectPath    = args[i + 1];
     else if (arg === '--meta'    || arg === '-m') metaFolderName = args[i + 1];
     else if (arg === '--ghs'     || arg === '-g') ghsPath        = args[i + 1];
-    else if (arg === '--target'  || arg === '-t') target         = args[i + 1];
     else if (arg === '--out'     || arg === '-o') outpath        = args[i + 1];
     else if (arg === '--prod'    || arg === '-P') prod           = true;
 });
-if (!metaFolderName) metaFolderName = 'project';
-if (!target) abort('No target specified! The --target option is required.');
 if (!projectPath) {
     console.warn(`--project option not provided! Assuming current folder as project folder: ${cwd}`);
     projectPath = cwd;
 }
+if (!metaFolderName) metaFolderName = 'project';
 if (!ghsPath) {
     if (process.env.GHS_ROOT) {
         if (process.env.GHS_ROOT.endsWith('/') || process.env.GHS_ROOT.endsWith('\\')) process.env.GHS_ROOT = process.env.GHS_ROOT.slice(0, -1);

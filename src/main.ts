@@ -45,21 +45,16 @@ Valid commands:
     patch                  Patch an RPX with a precompiled patch file.
 
 [Command specific options]
-compile
-    -t, --target <string>  Target build configuration to use.
-    -m, --meta <string>    Name of the project metadata folder. (default: "project") *
-    -p, --project <path>   Path to custom code project root folder. (default: "./") *
-    -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327") *
-    -o, --out <path>       Path to save the output file to. (default: next to base rpx) *
-    -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX. *
-                           
+compile <target>
+    -p, --project <path>   Path to custom code project root folder. (default: "./")
+    -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327")
+    -o, --out <path>       Path to save the output file to. (default: next to base rpx)
+    -m, --meta <string>    Name of the project metadata folder. (default: "project")
+    -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX.
 
-patch
-    -p, --patch            Path to Tachyon patch file to apply.
-    -r, --rpx              Path to input RPX file to patch.
-    -o, --out              Path to save the output RPX to. *
-
-* Flags or options with an asterisk at the end of the description are optional`);
+patch <base_rpx_path> <patch_file_path>
+    -o, --out              Path to save the output RPX to. (default: next to base RPX)
+`);
     process.exit();
 }
 

@@ -46,11 +46,11 @@ Valid commands:
 
 [Command specific options]
 compile
-    -R, --region <string>  Region of the base RPX provided.
+    -t, --target <string>  Target build configuration to use.
+    -m, --meta <string>    Name of the project metadata folder. (default: "project") *
     -p, --project <path>   Path to custom code project root folder. (default: "./") *
     -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327") *
     -o, --out <path>       Path to save the output file to. (default: next to base rpx) *
-    -b, --brand <string>   Cosmetic text to differ the output file from base. (default: "custom") *
     -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX. *
                            
 

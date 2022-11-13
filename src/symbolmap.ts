@@ -54,8 +54,8 @@ export class ConvMap {
 }
 
 export class SymbolMap {
-    constructor(projectPath: string, region: string, rpxsections: readonly Section[]) {
-        const lines: string[] = fs.readFileSync(path.join(projectPath, 'syms', 'main.map'), 'utf8').split('\n');
+    constructor(metaPath: string, targetAddrMap: string, rpxsections: readonly Section[]) {
+        const lines: string[] = fs.readFileSync(path.join(metaPath, 'syms', 'main.map'), 'utf8').split('\n');
         let symbols: CSymbol[] = [];
 
         // Parse map
@@ -91,7 +91,7 @@ export class SymbolMap {
 
         // Convert
         try {
-            const offsetsFile = fs.readFileSync(path.join(projectPath, 'conv', region) + '.offs', 'utf8');
+            const offsetsFile = fs.readFileSync(path.join(metaPath, 'conv', targetAddrMap) + '.offs', 'utf8');
             const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
             let addrs: ConvAddrs = { TextAddr: null, DataAddr: null, SymsAddr: null };
             let offsets: ConvOffset[] = [];
@@ -105,19 +105,19 @@ export class SymbolMap {
                     const label = split[0]!.trim();
                     const value = Number(split[1]!.trim());
                     if (label in addrs) {
-                        if (Number.isNaN(value)) abort(`Invalid value for ${label} at line ${linenum} of ${region}.offs`);
+                        if (Number.isNaN(value)) abort(`Invalid value for ${label} at line ${linenum} of ${targetAddrMap}.offs`);
                         addrs[label as keyof typeof addrs] = value;
                         continue;
-                    } else abort(`Unknown label ${label} at line ${linenum} of ${region}.offs`);
+                    } else abort(`Unknown label ${label} at line ${linenum} of ${targetAddrMap}.offs`);
                 }
                 const match = regex.exec(line);
-                if (!match) abort(`Failed to parse line ${linenum} in ${region}.offs`);
+                if (!match) abort(`Failed to parse line ${linenum} in ${targetAddrMap}.offs`);
                 const [_, from, until, sign, value] = match;
                 offsets.push({ from: Number('0x'+from), until: Number('0x'+until), value: sign === '-' ? -Number(value) : Number(value) });
             }
             this.converter = new ConvMap(offsets, addrs, rpxsections);
         } catch {
-            abort(`Invalid conversion map: ${path.join(projectPath, 'conv', region)}`);
+            abort(`Invalid conversion map: ${path.join(metaPath, 'conv', targetAddrMap)}`);
         }
 
         this.convertedLines.push('SECTIONS {');
@@ -129,7 +129,7 @@ export class SymbolMap {
         }
 
         this.convertedLines.push('}');
-        fs.writeFileSync(path.join(projectPath, 'syms', region) + '.x', this.convertedLines.join('\n'));
+        fs.writeFileSync(path.join(metaPath, 'syms', targetAddrMap) + '.x', this.convertedLines.join('\n'));
     }
 
     public getSymbol(name: string): CSymbol {

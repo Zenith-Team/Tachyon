@@ -9,25 +9,80 @@ import { abort, hex } from './utils.js';
 import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 
 interface ProjectYAML {
-    Name: string;
-    Modules: string[];
-    Defines: string[];
+    Name: string, //! Required
+    ModulesDir?: string, // Default: 'modules'
+    IncludeDir?: string, // Default: 'include'
+    SourceDir?: string, // Default: 'src'
+    RpxDir?: string, // Default: 'rpxs'
+    Defines?: string[], // Default: []
+    Modules: string[], //! Required
+    Targets: Record<string, ProjectTarget | null>, //! Required
+}
+
+interface ProjectTarget {
+    Extends?: string, // Default: null
+    AddrMap?: string, // Default: <TARGET_NAME>
+    BaseRpx?: string, // Default: <TARGET_NAME>
+    Defines?: string[], // Default: []
+    Modules?: string[], // Default: []
+    'Remove/Defines'?: string[], // Default: []
+    'Remove/Modules'?: string[], // Default: []
 }
 
 export class Project {
-    constructor(projectPath: string, ghsPath: string) {
+    constructor(projectPath: string, metaPath: string, ghsPath: string, target: string) {
         this.path = projectPath;
+        this.meta = metaPath;
+        this.ghsPath = ghsPath;
 
         try {
-            const yaml: ProjectYAML = yamlLib.parse(fs.readFileSync(path.join(projectPath, 'project.yaml'), 'utf8'));
-
+            const yaml: ProjectYAML = yamlLib.parse(fs.readFileSync(path.join(metaPath, 'project.yaml'), 'utf8'));
+            
             this.name = yaml.Name;
-            for (const module of yaml.Modules) {
-                const moduleobj = new Module(path.join(projectPath, 'modules', module));
-                this.modules.push(moduleobj);
-            }
-            this.ghsPath = ghsPath;
+            yaml.ModulesDir ??= 'modules';
+            yaml.IncludeDir ??= 'include';
+            yaml.SourceDir ??= 'src';
+            yaml.RpxDir ??= 'rpxs';
+            this.modulesDir = yaml.ModulesDir.startsWith('+/') ? path.join(metaPath, yaml.ModulesDir.slice(2)) : path.resolve(projectPath, yaml.ModulesDir);
+            this.includeDir = yaml.IncludeDir.startsWith('+/') ? path.join(metaPath, yaml.IncludeDir.slice(2)) : path.resolve(projectPath, yaml.IncludeDir);
+            this.sourceDir = yaml.SourceDir.startsWith('+/') ? path.join(metaPath, yaml.SourceDir.slice(2)) : path.resolve(projectPath, yaml.SourceDir);
+            this.rpxDir = yaml.RpxDir.startsWith('+/') ? path.join(metaPath, yaml.RpxDir.slice(2)) : path.resolve(projectPath, yaml.RpxDir);
             this.defines = yaml.Defines ?? [];
+
+            if (target.startsWith('Template/')) abort('Cannot directly build a template target.');
+            if (target in yaml.Targets) {
+                const tgt = yaml.Targets[target] ?? {};
+                tgt['Remove/Defines'] ??= [];
+                tgt['Remove/Modules'] ??= [];
+                tgt.Defines ??= [];
+                tgt.Modules ??= [];
+                if (tgt.Extends) {
+                    const templateName = 'Template/' + tgt.Extends;
+                    if (templateName in yaml.Targets) {
+                        const template = yaml.Targets[templateName] ?? {};
+                        if (template.Extends) abort(`Template target ${templateName} cannot extend other template targets.`);
+                        tgt.AddrMap ??= template.AddrMap ?? tgt.Extends;
+                        tgt.BaseRpx ??= template.BaseRpx ?? tgt.Extends;
+                        tgt['Remove/Defines'].push(...(template['Remove/Defines'] ?? []));
+                        tgt['Remove/Modules'].push(...(template['Remove/Modules'] ?? []));
+                        tgt.Defines.push(...(template.Defines ?? []));
+                        tgt.Modules.push(...(template.Modules ?? []));
+                    } else abort(`Target ${target} extends unknown template ${tgt.Extends}.`);
+                } else {
+                    tgt.AddrMap ??= target;
+                    tgt.BaseRpx ??= target;
+                }
+                this.defines = this.defines.filter(define => !tgt['Remove/Defines']!.includes(define));
+                this.defines.push(...tgt.Defines);
+                yaml.Modules = yaml.Modules.filter(module => !tgt['Remove/Modules']!.includes(module));
+                yaml.Modules.push(...tgt.Modules);
+                for (const module of yaml.Modules) {
+                    const moduleobj = new Module(path.join(this.modulesDir, module));
+                    this.modules.push(moduleobj);
+                }
+                this.targetAddrMap = tgt.AddrMap;
+                this.targetBaseRpx = tgt.BaseRpx;
+            } else abort(`Target ${target} not found on project.yaml!`);
         } catch (err) {
             abort('Invalid project.yaml!');
         }
@@ -53,7 +108,7 @@ export class Project {
         this.gpj.push('#!gbuild'
                     , 'primaryTarget=ppc_cos_ndebug.tgt'
                     , '[Project]'
-                    , '\t-object_dir=objs'
+                    , `\t-object_dir=objs`
                     , '\t--no_commons'
                     , '\t-c99'
                     , '\t-only_explicit_reg_use'
@@ -73,15 +128,15 @@ export class Project {
                     , '\t--max_inlining'
                     , '\t-Onounroll'
                     , '\t-MD'
-                    , '\t-Iinclude');
+                    , `\t-I${path.relative(this.meta, this.includeDir)}`);
 
         for (const define of this.defines) this.gpj.push('\t-D' + define);
-        for (const cpp of this.cppFiles)   this.gpj.push('source/' + cpp);
+        for (const cpp of this.cppFiles)   this.gpj.push(path.relative(this.meta, this.sourceDir).replaceAll('\\', '/') + '/' + cpp);
 
-        fs.writeFileSync(path.join(this.path, 'project.gpj'), this.gpj.join('\n'));
+        fs.writeFileSync(path.join(this.meta, 'project.gpj'), this.gpj.join('\n'));
     }
 
-    public link(region: string, map: SymbolMap): void {
+    public link(map: SymbolMap): void {
         let linkerDirective: string[] = [];
 
         linkerDirective.push('MEMORY {'
@@ -98,19 +153,20 @@ export class Project {
                            , '\t.bss    : > data'
                            , '}');
 
-        fs.writeFileSync(path.join(this.path, 'linker', region) + '.ld', linkerDirective.join('\n'));
+        fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld', linkerDirective.join('\n'));
 
         const elxrCommand = path.join(this.ghsPath, 'elxr.exe');
         let elxrArgs = [
-            '-T', path.join(this.path, 'syms', region) + '.x', '-T',
-            path.join(this.path, 'linker', region) + '.ld', '-o', path.join(this.path, this.name) + '.o'
+            '-T', path.join(this.meta, 'syms', this.targetAddrMap + '.x'),
+            '-T', path.join(this.meta, 'linker', this.targetAddrMap + '.ld'),
+            '-o', path.join(this.meta, this.name + '.o')
         ];
         let objFiles: string[] = [];
 
         for (const cppfile of this.cppFiles) objFiles.push(cppfile.replace('.cpp', '.o'));
-        for (const asmfile of this.asmFiles) objFiles.push(path.basename(asmfile) + '.o');
+        for (const asmfile of this.asmFiles) objFiles.push(asmfile + '.o');
         for (const file of objFiles) {
-            elxrArgs.push(path.join(this.path, 'objs', path.basename(file)));
+            elxrArgs.push(path.join(this.meta, 'objs', path.basename(file)));
         }
         const elxr = spawnSync(elxrCommand, elxrArgs, { cwd: this.path, stdio: 'inherit' });
         if (elxr.error || elxr.signal || elxr.stderr || elxr.status !== 0) abort('exlr command failed!');
@@ -128,9 +184,16 @@ export class Project {
 
     name: string;
     path: string;
-    modules: Module[] = [];
+    meta: string;
+    modulesDir: string;
+    includeDir: string;
+    sourceDir: string;
+    rpxDir: string;
     ghsPath: string;
+    modules: Module[] = [];
     defines: string[] = [];
+    targetAddrMap: string;
+    targetBaseRpx: string;
     cppFiles: string[] = [];
     asmFiles: string[] = [];
     gpj: string[] = [];

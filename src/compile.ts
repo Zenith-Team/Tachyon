@@ -14,7 +14,7 @@ export let oFile: RPL;
 export let symbolMap: SymbolMap;
 
 const cwd = process.cwd();
-const [target, ...args] = process.argv.slice(2);
+const [, target, ...args] = process.argv.slice(2);
 if (!target || target[0] === '-') abort('No target specified! The target is a positional argument and must precede all options and flags.');
 
 let projectPath: string | undefined;
@@ -22,6 +22,7 @@ let metaFolderName: string | undefined;
 let ghsPath: string | undefined;
 let outpath: string | undefined;
 let prod: boolean = false;
+let noCache: boolean = false;
 
 args.forEach((arg, i) => {
     if      (arg === '--project' || arg === '-p') projectPath    = args[i + 1];
@@ -29,6 +30,7 @@ args.forEach((arg, i) => {
     else if (arg === '--ghs'     || arg === '-g') ghsPath        = args[i + 1];
     else if (arg === '--out'     || arg === '-o') outpath        = args[i + 1];
     else if (arg === '--prod'    || arg === '-P') prod           = true;
+    else if (arg === '--no-cache')                noCache        = true;
 });
 if (!projectPath) {
     console.warn(`--project option not provided! Assuming current folder as project folder: ${cwd}`);
@@ -90,7 +92,12 @@ project.createGPJ();
 console.info('Compiling...');
 
 const objsPath = path.join(metaPath, 'objs');
-if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
+if (noCache) {
+    fs.rmSync(objsPath, { recursive: true, force: true });
+    fs.mkdirSync(objsPath);
+    console.info('Compilation cache cleared.');
+}
+else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
 const gbuildCommand = path.join(project.ghsPath, 'gbuild.exe');
 const gbuildArgs = [
@@ -126,7 +133,7 @@ for (const asmfile of project.asmFiles) {
     );
     const asppcArgs = [
         `-I${asppcIncludeDir}/`, '-o',
-        `${path.join(objsPath, path.basename(asmfile))}.o`, asmfilePath
+        `${path.join(objsPath, path.basename(asmfile))}.o`, path.relative(projectPath, asmfilePath)
     ];
     const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');
@@ -166,24 +173,24 @@ console.info(`Saved RPX to: ${savedTo}`);
 if (prod) {
     console.info('[PROD] Generating patch file...');
     const encoder = new TextEncoder();
-    const magic = new Uint8Array([0xC5, 0xFC, 0x50, 0x46]); // "CSFC" PF (Patch File)
-    const projNameData = encoder.encode(project.name);
+    const magic = new Uint8Array([0xC5, 0xFC, 0x9F, 0x01]); // "CS FC PF" <format version>
     const patchesData = encoder.encode(JSON.stringify(patches));
+    const projNameAndTargetData = encoder.encode(`${project.name}\v${target}`); // Separated by \v (charcode 0x0B)
     const values = Buffer.allocUnsafe(28);
-    values.writeUint32BE(symbolMap.converter.syms,             0); // 0x4
-    values.writeUint32BE(symbolMap.converter.text,             4); // 0x8
-    values.writeUint32BE(symbolMap.converter.data,             8); // 0xC
+    values.writeUint32BE(symbolMap.converter.text,             0); // 0x4
+    values.writeUint32BE(symbolMap.converter.data,             4); // 0x8
+    values.writeUint32BE(symbolMap.converter.syms,             8); // 0xC
     values.writeUint32BE(patchesData.byteLength,              12); // 0x10
-    values.writeUint32BE(projNameData.byteLength,             16); // 0x14
+    values.writeUint32BE(projNameAndTargetData.byteLength,    16); // 0x14
     values.writeUint32BE(crc.crc32(rpxData),                  20); // 0x18
     values.writeUint32BE(crc.crc32(fs.readFileSync(savedTo)), 24); // 0x1C
 
     const patchFileData = zlib.deflateSync(Buffer.concat([
         magic,        // 0x0: u32
         values,       // 0x4: u32, 0x8: u32, 0xC: u32, 0x10: u32, 0x14: u32, 0x18: u32, 0x1C: u32
-        patchesData,  // 0x20: char[]
-        projNameData, // 0x20 + (value at 0x10): char[]
-        oFileData     // 0x20 + (value at 0x10) + (value at 0x14): u8[]
+        patchesData,  // 0x20: char[(value at 0x10)]
+        projNameAndTargetData, // 0x20 + (value at 0x10): char[(value at 0x14)]
+        oFileData     // 0x20 + (value at 0x10) + (value at 0x14): u8[(until EOF)]
     ]), { memLevel: 9, level: 9 });
 
     const patchFilePath = path.join(path.dirname(savedTo), `${project.name}.${target}.typf`);

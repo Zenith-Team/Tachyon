@@ -51,6 +51,7 @@ compile <target>
     -o, --out <path>       Path to save the output file to. (default: next to base rpx)
     -m, --meta <string>    Name of the project metadata folder. (default: "project")
     -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX.
+    --no-cache             Clear the compilation cache before compiling.
 
 patch <base_rpx_path> <patch_file_path>
     -o, --out              Path to save the output RPX to. (default: next to base RPX)

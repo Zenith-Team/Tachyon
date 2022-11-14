@@ -4,7 +4,7 @@ import {
 import { u32, hex, abort } from './utils.js';
 import { Patch } from './hooks.js';
 
-export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
+export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand: string, addrs: { syms: u32, text: u32, data: u32 }) {
     interface SectionMap {
         text: Section, rodata: Section, data: Section, bss: NoBitsSection,
         symtab: SymbolSection, strtab: StringSection,
@@ -14,7 +14,7 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
     }
 
     const rpxSections = {} as SectionMap;
-    for (const section of destRPX.sections) {
+    for (const section of baseRPX.sections) {
         switch (section.name) {
             case '.text': rpxSections.text = section; break;
             case '.rodata': rpxSections.rodata = section; break;
@@ -27,75 +27,75 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
             case '.rela.data': rpxSections.reladata = section as RelocationSection; break;
         }
     }
-    const sourceRPXSections = {} as Partial<SectionMap> & { text: Section };
-    for (const section of sourceRPX.sections) {
+    const compiledRPXSections = {} as Partial<SectionMap> & { text: Section };
+    for (const section of compiledRPX.sections) {
         switch (section.name) {
-            case '.text': sourceRPXSections.text = section; break;
-            case '.rodata': sourceRPXSections.rodata = section; break;
-            case '.data': sourceRPXSections.data = section; break;
-            case '.bss': sourceRPXSections.bss = section as NoBitsSection; break;
-            case '.symtab': sourceRPXSections.symtab = section as SymbolSection; break;
-            case '.strtab': sourceRPXSections.strtab = section as StringSection; break;
-            case '.rela.text': sourceRPXSections.relatext = section as RelocationSection; break;
-            case '.rela.rodata': sourceRPXSections.relarodata = section as RelocationSection; break;
-            case '.rela.data': sourceRPXSections.reladata = section as RelocationSection; break;
+            case '.text': compiledRPXSections.text = section; break;
+            case '.rodata': compiledRPXSections.rodata = section; break;
+            case '.data': compiledRPXSections.data = section; break;
+            case '.bss': compiledRPXSections.bss = section as NoBitsSection; break;
+            case '.symtab': compiledRPXSections.symtab = section as SymbolSection; break;
+            case '.strtab': compiledRPXSections.strtab = section as StringSection; break;
+            case '.rela.text': compiledRPXSections.relatext = section as RelocationSection; break;
+            case '.rela.rodata': compiledRPXSections.relarodata = section as RelocationSection; break;
+            case '.rela.data': compiledRPXSections.reladata = section as RelocationSection; break;
         }
     }
 
-    sourceRPXSections.text.nameOffset = destRPX.shstrSection.strings.add(`.text.${brand}`);
-    sourceRPXSections.text.flags = rpxSections.text.flags;
-    destRPX.pushSection(sourceRPXSections.text);
+    compiledRPXSections.text.nameOffset = baseRPX.shstrSection.strings.add(`.text.${brand}`);
+    compiledRPXSections.text.flags = rpxSections.text.flags;
+    baseRPX.pushSection(compiledRPXSections.text);
 
-    if (sourceRPXSections.rodata) {
-        sourceRPXSections.rodata.nameOffset = destRPX.shstrSection.strings.add(`.rodata.${brand}`);
-        sourceRPXSections.rodata.flags = rpxSections.rodata.flags;
-        destRPX.pushSection(sourceRPXSections.rodata);
+    if (compiledRPXSections.rodata) {
+        compiledRPXSections.rodata.nameOffset = baseRPX.shstrSection.strings.add(`.rodata.${brand}`);
+        compiledRPXSections.rodata.flags = rpxSections.rodata.flags;
+        baseRPX.pushSection(compiledRPXSections.rodata);
     }
-    if (sourceRPXSections.data) {
-        sourceRPXSections.data.nameOffset = destRPX.shstrSection.strings.add(`.data.${brand}`);
-        sourceRPXSections.data.flags = rpxSections.data.flags;
-        destRPX.pushSection(sourceRPXSections.data);
+    if (compiledRPXSections.data) {
+        compiledRPXSections.data.nameOffset = baseRPX.shstrSection.strings.add(`.data.${brand}`);
+        compiledRPXSections.data.flags = rpxSections.data.flags;
+        baseRPX.pushSection(compiledRPXSections.data);
     }
-    if (sourceRPXSections.bss) {
-        sourceRPXSections.bss.nameOffset = destRPX.shstrSection.strings.add(`.bss.${brand}`);
-        sourceRPXSections.bss.flags = rpxSections.bss.flags;
-        destRPX.pushSection(sourceRPXSections.bss);
+    if (compiledRPXSections.bss) {
+        compiledRPXSections.bss.nameOffset = baseRPX.shstrSection.strings.add(`.bss.${brand}`);
+        compiledRPXSections.bss.flags = rpxSections.bss.flags;
+        baseRPX.pushSection(compiledRPXSections.bss);
     }
-    if (sourceRPXSections.relatext) {
-        sourceRPXSections.relatext.nameOffset = destRPX.shstrSection.strings.add(`.rela.text.${brand}`);
-        sourceRPXSections.relatext.flags = rpxSections.relatext.flags;
-        destRPX.pushSection(sourceRPXSections.relatext);
+    if (compiledRPXSections.relatext) {
+        compiledRPXSections.relatext.nameOffset = baseRPX.shstrSection.strings.add(`.rela.text.${brand}`);
+        compiledRPXSections.relatext.flags = rpxSections.relatext.flags;
+        baseRPX.pushSection(compiledRPXSections.relatext);
     }
-    if (sourceRPXSections.relarodata) {
-        sourceRPXSections.relarodata.nameOffset = destRPX.shstrSection.strings.add(`.rela.rodata.${brand}`);
-        sourceRPXSections.relarodata.flags = rpxSections.relarodata.flags;
-        destRPX.pushSection(sourceRPXSections.relarodata);
+    if (compiledRPXSections.relarodata) {
+        compiledRPXSections.relarodata.nameOffset = baseRPX.shstrSection.strings.add(`.rela.rodata.${brand}`);
+        compiledRPXSections.relarodata.flags = rpxSections.relarodata.flags;
+        baseRPX.pushSection(compiledRPXSections.relarodata);
     }
-    if (sourceRPXSections.reladata) {
-        sourceRPXSections.reladata.nameOffset = destRPX.shstrSection.strings.add(`.rela.data.${brand}`);
-        sourceRPXSections.reladata.flags = rpxSections.reladata.flags;
-        destRPX.pushSection(sourceRPXSections.reladata);
+    if (compiledRPXSections.reladata) {
+        compiledRPXSections.reladata.nameOffset = baseRPX.shstrSection.strings.add(`.rela.data.${brand}`);
+        compiledRPXSections.reladata.flags = rpxSections.reladata.flags;
+        baseRPX.pushSection(compiledRPXSections.reladata);
     }
-    if (sourceRPXSections.symtab) {
-        sourceRPXSections.symtab.nameOffset = destRPX.shstrSection.strings.add(`.symtab.${brand}`);
-        sourceRPXSections.symtab.flags = rpxSections.symtab.flags;
-        sourceRPXSections.symtab.addr = Util.roundUp(addrs.syms, +sourceRPXSections.symtab.addrAlign);
-        destRPX.pushSection(sourceRPXSections.symtab);
+    if (compiledRPXSections.symtab) {
+        compiledRPXSections.symtab.nameOffset = baseRPX.shstrSection.strings.add(`.symtab.${brand}`);
+        compiledRPXSections.symtab.flags = rpxSections.symtab.flags;
+        compiledRPXSections.symtab.addr = Util.roundUp(addrs.syms, +compiledRPXSections.symtab.addrAlign);
+        baseRPX.pushSection(compiledRPXSections.symtab);
     }
-    if (sourceRPXSections.strtab) {
-        sourceRPXSections.strtab.nameOffset = destRPX.shstrSection.strings.add(`.strtab.${brand}`);
-        sourceRPXSections.strtab.flags = rpxSections.strtab.flags;
-        sourceRPXSections.strtab.addr = Util.roundUp(
-            addrs.syms + (sourceRPXSections.symtab ? +sourceRPXSections.symtab.size : 0),
-            +sourceRPXSections.strtab.addrAlign
+    if (compiledRPXSections.strtab) {
+        compiledRPXSections.strtab.nameOffset = baseRPX.shstrSection.strings.add(`.strtab.${brand}`);
+        compiledRPXSections.strtab.flags = rpxSections.strtab.flags;
+        compiledRPXSections.strtab.addr = Util.roundUp(
+            addrs.syms + (compiledRPXSections.symtab ? +compiledRPXSections.symtab.size : 0),
+            +compiledRPXSections.strtab.addrAlign
         );
-        destRPX.pushSection(sourceRPXSections.strtab);
+        baseRPX.pushSection(compiledRPXSections.strtab);
     }
-    if (sourceRPXSections.symtab && sourceRPXSections.strtab) {
-        sourceRPXSections.symtab.link = sourceRPXSections.strtab.index;
+    if (compiledRPXSections.symtab && compiledRPXSections.strtab) {
+        compiledRPXSections.symtab.link = compiledRPXSections.strtab.index;
     }
-    destRPX.crcSection.nameOffset = destRPX.shstrSection.strings.add(`.rplcrcs`);
-    destRPX.fileinfoSection.nameOffset = destRPX.shstrSection.strings.add(`.rplfileinfo`);
+    baseRPX.crcSection.nameOffset = baseRPX.shstrSection.strings.add(`.rplcrcs`);
+    baseRPX.fileinfoSection.nameOffset = baseRPX.shstrSection.strings.add(`.rplfileinfo`);
 
     for (const patch of patches) {
         let targetSection: Section;
@@ -173,8 +173,8 @@ export function patchRPX(sourceRPX: RPL, destRPX: RPL, patches: Patch[], brand: 
         targetSection.data!.set(dataBytes, address - <number>targetSection.addr);
     }
 
-    destRPX.shstrSection.addr = destRPX.addressRanges.free.find(([start]) => start >= LoadBaseAddress)![0];
-    destRPX.fileinfoSection.adjustFileInfoSizes();
+    baseRPX.shstrSection.addr = baseRPX.addressRanges.free.find(([start]) => start >= LoadBaseAddress)![0];
+    baseRPX.fileinfoSection.adjustFileInfoSizes();
     // CEMU subtracts 0x90 from this value for some random reason (?)
-    (<number>destRPX.fileinfoSection.fileinfo.loadSize) += 0x90;
+    (<number>baseRPX.fileinfoSection.fileinfo.loadSize) += 0x90;
 }

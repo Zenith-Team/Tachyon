@@ -68,8 +68,8 @@ const rpx = new RPL(rpxData, { parseRelocs: true });
 patchRPX(new RPL(oFile), rpx, patches, projName, addrs);
 
 const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
-const savedTo = rpx.save(`${outpath ?? defaultSavePath}.${projName}.${target}`, false); // TODO: fix compression breaking string table
-const outHash = crc.crc32(fs.readFileSync(savedTo));
+const saved = rpx.save(`${outpath ?? defaultSavePath}.${projName}.${target}`, false); // TODO: fix compression breaking string table
+const outHash = crc.crc32(saved.filedata);
 if (outHash !== expectedOutputRPXHash) {
     if (allowHashMismatch) {
         console.warn(
@@ -77,8 +77,8 @@ if (outHash !== expectedOutputRPXHash) {
             '\nProceeding anyway due to --allow-hash-mismatch flag being set.'
         );
     } else {
-        fs.rmSync(savedTo, { force: true });
+        fs.rmSync(saved.filepath, { force: true });
         abort(`Patch failed. The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}`);
     }
 }
-console.info(`Patch successful. Saved patched RPX to: ${savedTo}`);
+console.info(`Patch successful. Saved patched RPX to: ${saved.filepath}`);

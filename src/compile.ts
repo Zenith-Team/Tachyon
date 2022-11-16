@@ -163,8 +163,8 @@ patchRPX(oFile, rpx, patches, project.name, symbolMap.converter);
 console.info('Saving RPX...');
 
 const defaultSavePath = path.join(project.rpxDir, `${project.name}.${target}`);
-const savedTo = rpx.save(outpath ?? defaultSavePath, prod);
-console.info(`Saved RPX to: ${savedTo}`);
+const saved = rpx.save(outpath ?? defaultSavePath, prod);
+console.info(`Saved RPX to: ${saved.filepath}`);
 
 //*--------------------
 //* Step 5.5: Generate PROD files
@@ -183,7 +183,7 @@ if (prod) {
     values.writeUint32BE(patchesData.byteLength,              12); // 0x10
     values.writeUint32BE(projNameAndTargetData.byteLength,    16); // 0x14
     values.writeUint32BE(crc.crc32(rpxData),                  20); // 0x18
-    values.writeUint32BE(crc.crc32(fs.readFileSync(savedTo)), 24); // 0x1C
+    values.writeUint32BE(crc.crc32(saved.filedata),           24); // 0x1C
 
     const patchFileData = zlib.deflateSync(Buffer.concat([
         magic,        // 0x0: u32
@@ -193,7 +193,7 @@ if (prod) {
         oFileData     // 0x20 + (value at 0x10) + (value at 0x14): u8[(until EOF)]
     ]), { memLevel: 9, level: 9 });
 
-    const patchFilePath = path.join(path.dirname(savedTo), `${project.name}.${target}.typf`);
+    const patchFilePath = path.join(path.dirname(saved.filepath), `${project.name}.${target}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);
     console.info('[PROD] Saved patch file to:', patchFilePath);
 }

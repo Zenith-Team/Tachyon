@@ -4,16 +4,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 const args = process.argv.slice(2);
 
-declare global {
-    namespace NodeJS {
-        interface ProcessEnv {
-            GHS_ROOT: string | undefined;
-            TACHYON_LIB_MODE: string | undefined;
-            readonly TACHYON_DEBUG: string | undefined;
-        }
-    }
-}
-
 /* eslint-disable no-fallthrough */
 try {
     // Process commands
@@ -57,7 +47,7 @@ compile <target>
 patch <base_rpx_path> <patch_file_path>
     -o, --out              Path to save the output RPX to. (default: next to base RPX)
 `);
-    process.exit();
+    if (!process.env.TACHYON_LIB_MODE) process.exit();
 }
 
 if (args.includes('-v') || args.includes('--version')) {
@@ -65,12 +55,16 @@ if (args.includes('-v') || args.includes('--version')) {
         const { version } = JSON.parse(
             fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
         ) as { version: string };
-        console.info(`Tachyon v${version}`);
-    } catch {
-        console.error('Failed to get version.');
+        if (!process.env.TACHYON_LIB_MODE) console.info(`Tachyon v${version}`);
+        else process.env.TACHYON_LIB_RETURN = version;
+    } catch (err) {
+        if (process.env.TACHYON_LIB_MODE) throw err;
+        else console.error('Failed to get version.');
     }
-    process.exit();
+    if (!process.env.TACHYON_LIB_MODE) process.exit();
 }
 
-console.error('Unknown command or options, run "tachyon --help" for information.');
-process.exit();
+if (!process.env.TACHYON_LIB_MODE) {
+    console.error('Unknown command or options, run "tachyon --help" for information.');
+    process.exit();
+}

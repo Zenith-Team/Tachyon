@@ -49,7 +49,7 @@ if (!ghsPath) {
     }
 }
 if (outpath) {
-    if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
+    if (['.rpx', '.rpl', '.elf'].includes(path.extname(outpath).toLowerCase())) abort('Output path may not contain the file extension, only the name.');
     outpath = path.resolve(cwd, outpath);
 }
 projectPath = path.resolve(cwd, projectPath);

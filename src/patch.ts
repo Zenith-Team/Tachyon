@@ -19,7 +19,7 @@ args.forEach((arg, i) => {
 if (!rpxPath || rpxPath[0] === '-') abort('No base RPX file provided! The first positional argument must be the path to the base RPX to patch.');
 if (!patchFilePath || patchFilePath[0] === '-') abort('No patch file provided! The second positional argument must be the path to the Tachyon patch file to apply.');
 if (outpath) {
-    if (path.extname(outpath)) abort('Output path may not contain the file extension, only the name.');
+    if (['.rpx', '.rpl', '.elf'].includes(path.extname(outpath).toLowerCase())) abort('Output path may not contain the file extension, only the name.');
     outpath = path.resolve(cwd, outpath);
 }
 rpxPath = path.resolve(cwd, rpxPath);

@@ -68,7 +68,7 @@ const rpx = new RPL(rpxData, { parseRelocs: true });
 patchRPX(new RPL(oFile), rpx, patches, projName, addrs);
 
 const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
-const saved = rpx.save(`${outpath ?? defaultSavePath}.${projName}.${target}`, true);
+const saved = rpx.save(outpath ?? `${defaultSavePath}.${projName}.${target}`, true);
 const outHash = crc.crc32(saved.filedata);
 if (outHash !== expectedOutputRPXHash) {
     if (allowHashMismatch) {

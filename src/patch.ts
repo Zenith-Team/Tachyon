@@ -36,7 +36,7 @@ try {
     // Silently proceed to magic check
 }
 if (patchFile.readUint32BE(0) !== 0xC5FC9F01) abort(`The file ${patchFilePath} is not a Tachyon patch file!`);
-console.info('Patching...');
+if (!process.env.TACHYON_LIB_MODE) console.info('Patching...');
 
 const DYN_OFFSET = 0x20 as const;
 const decoder = new TextDecoder();
@@ -81,4 +81,6 @@ if (outHash !== expectedOutputRPXHash) {
         abort(`Patch failed. The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}`);
     }
 }
-console.info(`Patch successful. Saved patched RPX to: ${saved.filepath}`);
+if (process.env.TACHYON_LIB_MODE) {
+    process.env.TACHYON_LIB_RETURN = saved.filepath;
+} else console.info(`Patch successful. Saved patched RPX to: ${saved.filepath}`);

@@ -10,11 +10,25 @@ declare global {
 }
 
 export default {
-    async version() {
+    async version(): Promise<string> {
         process.env.TACHYON_LIB_MODE = '1';
         process.argv = ['node', 'tachyon', '-v'];
         await import('./cli.js');
         delete process.env.TACHYON_LIB_MODE;
-        return process.env.TACHYON_LIB_RETURN;
+        return process.env.TACHYON_LIB_RETURN!;
+    },
+    compile(..._: unknown[]): never {
+        const error = new Error('Cannot compile from library mode.');
+        error.name = 'TachyonLibError';
+        Error.captureStackTrace(error, this.compile);
+        throw error;
+    },
+    async patch(baseRpxPath: string, patchFilePath: string, outputPath?: string): Promise<string> {
+        process.env.TACHYON_LIB_MODE = '1';
+        process.argv = ['node', 'tachyon', 'patch', baseRpxPath, patchFilePath];
+        if (outputPath) process.argv.push('-o', outputPath);
+        await import('./patch.js');
+        delete process.env.TACHYON_LIB_MODE;
+        return process.env.TACHYON_LIB_RETURN!;
     }
 };

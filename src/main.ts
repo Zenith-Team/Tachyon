@@ -8,6 +8,7 @@ declare global {
     namespace NodeJS {
         interface ProcessEnv {
             GHS_ROOT: string | undefined;
+            TACHYON_LIB_MODE: string | undefined;
             readonly TACHYON_DEBUG: string | undefined;
         }
     }

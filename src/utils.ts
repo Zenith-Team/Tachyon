@@ -20,8 +20,16 @@ declare global {
  * Print out an error and terminate execution.
  */
 export function abort(msg: string, code: number = 0): never {
-    console.error(msg);
-    process.exit(code);
+    if (process.env.TACHYON_LIB_MODE) {
+        const error = new Error(msg);
+        error.name = 'TachyonAbortedError';
+        Error.captureStackTrace(error, abort);
+        Reflect.set(error, 'code', code);
+        throw error;
+    } else {
+        console.error(msg);
+        process.exit(code);
+    }
 }
 
 /**

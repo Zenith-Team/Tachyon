@@ -134,7 +134,7 @@ Hooks:
   # example patch/hook structure
   - type: # the type of the patch/hook, see the Patches & Hooks section of the docs for details
     addr: # a stringified hex number with 0x prefix, indicating the where to apply the patch
-    ???: # other hook-type specific fields exist, se the Patches & Hooks section of the docs for details
+    ????: # other hook-type specific fields exist, se the Patches & Hooks section of the docs for details
 ```
 
 ### Patches & Hooks

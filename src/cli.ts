@@ -47,6 +47,7 @@ Valid commands:
 [Command specific options]
 compile <target>
     -p, --project <path>   Path to custom code project root folder. (default: "./")
+    -T, --threads <number> Number of parallel threads to use for compilation. (default: 2)
     -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327")
     -o, --out <path>       Path to save the output file to. (default: next to base rpx)
     -m, --meta <string>    Name of the project metadata folder. (default: "project")

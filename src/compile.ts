@@ -1,4 +1,5 @@
 ﻿import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import util from 'util';
 import zlib from 'zlib';
@@ -18,6 +19,7 @@ const cwd = process.cwd();
 const {
     positionals: targets, values: {
         project: projectPathRaw,
+        threads: threadsRaw,
         meta: metaFolderName,
         ghs: ghsPathRaw,
         out: outPathRaw,
@@ -30,6 +32,7 @@ const {
     allowPositionals: true,
     options: {
         project:    { type: 'string',  short: 'p', default: cwd },
+        threads:    { type: 'string',  short: 'T', default: '2' },
         meta:       { type: 'string',  short: 'm', default: 'project' },
         ghs:        { type: 'string',  short: 'g', default: process.env.GHS_ROOT ?? 'C:/ghs/multi5327' },
         out:        { type: 'string',  short: 'o' },
@@ -41,6 +44,10 @@ const {
 if (targets.length === 0) abort('No targets specified.');
 if (targets.length > 1) abort('Multiple targets are not yet supported.');
 const target = targets[0]!;
+
+const threads = Number(threadsRaw);
+if (!Number.isSafeInteger(threads) || threads <= 0) abort('Invalid number of threads.');
+if (threads > os.cpus().length) abort(`Number of threads exceeds number of available CPU cores (${os.cpus().length}).`);
 
 const outPath = outPathRaw ? (
     ['.rpx', '.rpl', '.elf'].includes(path.extname(outPathRaw).toLowerCase()) ?
@@ -95,7 +102,7 @@ else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
 const gbuildCommand = path.join(project.ghsPath, 'gbuild.exe');
 const gbuildArgs = [
-    '-top', path.join(metaPath, 'project.gpj')
+    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`,
 ];
 const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectPath, stdio: 'inherit' });
 if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort('gbuild command failed!');

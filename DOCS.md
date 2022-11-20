@@ -80,7 +80,7 @@ IncludeDir: # path to headers folder (default: include)
 SourceDir: # path to sources folder (default: src)
 RpxDir: # path to rpxs files folder (default: rpxs)
 Modules:
-  - # list of global modules to compile (REQUIRED)
+  - # list of names of global modules to compile (REQUIRED)
   - # ...
 Defines:
   - # list of global C++ defines to set on compilation (default: empty list)
@@ -92,13 +92,13 @@ Targets: # key/value pairs of indefinite target configurations
     AddrMap: # name of conv/*.offs file to use with this target (default: TargetName)
     BaseRpx: # name of {RpxDir}/*.rpx file to use with this target (default: TargetName)
     Modules:
-      - # list of additional modules to compile with this target (default: empty list)
+      - # list of names of additional modules to compile with this target (default: empty list)
       - # ...
     Defines:
       - # list of additional C++ defines to set with this target (default: empty list)
       - # ...
     Remove/Modules:
-      - # list of global modules to remove from compilation with this target (default: empty list)
+      - # list of names of global modules to remove from compilation with this target (default: empty list)
       - # ...
     Remove/Defines:
       - # list of global C++ defines to remove from this target (default: empty list)

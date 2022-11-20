@@ -77,7 +77,7 @@ export class Project {
                 yaml.Modules = yaml.Modules.filter(module => !tgt['Remove/Modules']!.includes(module));
                 yaml.Modules.push(...tgt.Modules);
                 for (const module of yaml.Modules) {
-                    const moduleobj = new Module(path.join(this.modulesDir, module));
+                    const moduleobj = new Module(path.join(this.modulesDir, module + '.yaml'));
                     this.modules.push(moduleobj);
                 }
                 this.targetAddrMap = tgt.AddrMap;

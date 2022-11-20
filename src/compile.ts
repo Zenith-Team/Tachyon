@@ -21,7 +21,8 @@ let projectPath: string | undefined;
 let metaFolderName: string | undefined;
 let ghsPath: string | undefined;
 let outpath: string | undefined;
-let prod: boolean = false;
+let produceRPX: boolean = false;
+let produceTYPF: boolean = false;
 let noCache: boolean = false;
 
 args.forEach((arg, i) => {
@@ -29,7 +30,8 @@ args.forEach((arg, i) => {
     else if (arg === '--meta'    || arg === '-m') metaFolderName = args[i + 1];
     else if (arg === '--ghs'     || arg === '-g') ghsPath        = args[i + 1];
     else if (arg === '--out'     || arg === '-o') outpath        = args[i + 1];
-    else if (arg === '--prod'    || arg === '-P') prod           = true;
+    else if (arg === '--rpx'     || arg === '-r') produceRPX     = true;
+    else if (arg === '--typf'    || arg === '-t') produceTYPF    = true;
     else if (arg === '--no-cache')                noCache        = true;
 });
 if (!projectPath) {
@@ -163,15 +165,15 @@ patchRPX(oFile, rpx, patches, project.name, symbolMap.converter);
 console.info('Saving RPX...');
 
 const defaultSavePath = path.join(project.rpxDir, `${project.name}.${target}`);
-const saved = rpx.save(outpath ?? defaultSavePath, prod);
+const saved = rpx.save(outpath ?? defaultSavePath, produceRPX);
 console.info(`Saved RPX to: ${saved.filepath}`);
 
 //*--------------------
-//* Step 5.5: Generate PROD files
+//* Step 5+: Generate TYPF file
 //*--------------------
 
-if (prod) {
-    console.info('[PROD] Generating patch file...');
+if (produceTYPF) {
+    console.info('[TYPF] Generating patch file...');
     const encoder = new TextEncoder();
     const magic = new Uint8Array([0xC5, 0xFC, 0x9F, 0x01]); // "CS FC PF" <format version>
     const patchesData = encoder.encode(JSON.stringify(patches));
@@ -195,7 +197,7 @@ if (prod) {
 
     const patchFilePath = path.join(path.dirname(saved.filepath), `${project.name}.${target}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);
-    console.info('[PROD] Saved patch file to:', patchFilePath);
+    console.info('[TYPF] Saved patch file to:', patchFilePath);
 }
 
 console.info(`Finished. Build took ${(performance.now() - timer).toFixed(3)}ms.`);

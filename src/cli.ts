@@ -41,7 +41,8 @@ compile <target>
     -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327")
     -o, --out <path>       Path to save the output file to. (default: next to base rpx)
     -m, --meta <string>    Name of the project metadata folder. (default: "project")
-    -P, --prod             Output compressed RPX instead of uncompressed ELF, and generate a Tachyon patch file next to the RPX.
+    -r, --rpx              Output compressed RPX instead of uncompressed ELF.
+    -t, --typf             Output a Tachyon patch file next to the ELF/RPX.
     --no-cache             Clear the compilation cache before compiling.
 
 patch <base_rpx_path> <patch_file_path>

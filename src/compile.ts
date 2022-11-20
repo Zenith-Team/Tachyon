@@ -1,5 +1,6 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import util from 'util';
 import zlib from 'zlib';
 import crc from '@foxglove/crc';
 import { Patch } from './hooks.js';
@@ -12,51 +13,42 @@ import { abort, scanAssemlyFileDependencies } from './utils.js';
 
 export let oFile: RPL;
 export let symbolMap: SymbolMap;
-
 const cwd = process.cwd();
-const [, target, ...args] = process.argv.slice(2);
-if (!target || target[0] === '-') abort('No target specified! The target is a positional argument and must precede all options and flags.');
 
-let projectPath: string | undefined;
-let metaFolderName: string | undefined;
-let ghsPath: string | undefined;
-let outpath: string | undefined;
-let produceRPX: boolean = false;
-let produceTYPF: boolean = false;
-let noCache: boolean = false;
-
-args.forEach((arg, i) => {
-    if      (arg === '--project' || arg === '-p') projectPath    = args[i + 1];
-    else if (arg === '--meta'    || arg === '-m') metaFolderName = args[i + 1];
-    else if (arg === '--ghs'     || arg === '-g') ghsPath        = args[i + 1];
-    else if (arg === '--out'     || arg === '-o') outpath        = args[i + 1];
-    else if (arg === '--rpx'     || arg === '-r') produceRPX     = true;
-    else if (arg === '--typf'    || arg === '-t') produceTYPF    = true;
-    else if (arg === '--no-cache')                noCache        = true;
-});
-if (!projectPath) {
-    console.warn(`--project option not provided! Assuming current folder as project folder: ${cwd}`);
-    projectPath = cwd;
-}
-if (!metaFolderName) metaFolderName = 'project';
-if (!ghsPath) {
-    if (process.env.GHS_ROOT) {
-        if (process.env.GHS_ROOT.endsWith('/') || process.env.GHS_ROOT.endsWith('\\')) process.env.GHS_ROOT = process.env.GHS_ROOT.slice(0, -1);
-        console.warn(`--ghs option not provided! Using path found in GHS_ROOT environment variable: ${process.env.GHS_ROOT}`);
-        ghsPath = process.env.GHS_ROOT;
-    } else {
-        const defaultGhsPath = 'C:/ghs/multi5327';
-        console.warn(`--ghs option not provided! Searching for GHS on its default install location: ${defaultGhsPath}`);
-        ghsPath = defaultGhsPath;
+const {
+    positionals: targets, values: {
+        project: projectPathRaw,
+        meta: metaFolderName,
+        ghs: ghsPathRaw,
+        out: outPathRaw,
+        rpx: produceRPX,
+        typf: produceTYPF,
+        'no-cache': noCache
     }
-}
-if (outpath) {
-    if (['.rpx', '.rpl', '.elf'].includes(path.extname(outpath).toLowerCase())) abort('Output path may not contain the file extension, only the name.');
-    outpath = path.resolve(cwd, outpath);
-}
-projectPath = path.resolve(cwd, projectPath);
-ghsPath = path.resolve(cwd, ghsPath);
-const metaPath = path.join(projectPath, metaFolderName);
+} = util.parseArgs({
+    args: process.argv.slice(3),
+    allowPositionals: true,
+    options: {
+        project:    { type: 'string',  short: 'p', default: cwd },
+        meta:       { type: 'string',  short: 'm', default: 'project' },
+        ghs:        { type: 'string',  short: 'g', default: process.env.GHS_ROOT ?? 'C:/ghs/multi5327' },
+        out:        { type: 'string',  short: 'o' },
+        rpx:        { type: 'boolean', default: false, short: 'r' },
+        typf:       { type: 'boolean', default: false, short: 't' },
+        'no-cache': { type: 'boolean', default: false },
+    }
+});
+if (targets.length === 0) abort('No targets specified.');
+if (targets.length > 1) abort('Multiple targets are not yet supported.');
+const target = targets[0]!;
+
+const outPath = outPathRaw ? (
+    ['.rpx', '.rpl', '.elf'].includes(path.extname(outPathRaw).toLowerCase()) ?
+        abort('Output path may not contain the file extension, only the name.') : path.resolve(cwd, outPathRaw)
+) : null;
+const projectPath = path.resolve(cwd, projectPathRaw!);
+const ghsPath = path.resolve(cwd, ghsPathRaw!);
+const metaPath = path.join(projectPath, metaFolderName!);
 
 if (!fs.existsSync(projectPath))                             abort('Project path folder does not exist!');
 if (!fs.existsSync(metaPath))                                abort(`Project meta folder not found: ${metaPath}`);
@@ -165,7 +157,7 @@ patchRPX(oFile, rpx, patches, project.name, symbolMap.converter);
 console.info('Saving RPX...');
 
 const defaultSavePath = path.join(project.rpxDir, `${project.name}.${target}`);
-const saved = rpx.save(outpath ?? defaultSavePath, produceRPX);
+const saved = rpx.save(outPath ?? defaultSavePath, produceRPX);
 console.info(`Saved RPX to: ${saved.filepath}`);
 
 //*--------------------

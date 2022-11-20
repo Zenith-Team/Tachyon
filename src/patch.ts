@@ -3,27 +3,34 @@ import { patchRPX } from './patchrpx.js';
 import { RPL } from 'rpxlib';
 import { abort, hex } from './utils.js';
 import crc from '@foxglove/crc';
+import util from 'util';
 import path from 'path';
 import zlib from 'zlib';
 import fs from 'fs';
-
 const cwd = process.cwd();
-let [, rpxPath, patchFilePath, ...args] = process.argv.slice(2);
-let outpath: string | undefined;
-let allowHashMismatch: boolean = false;
 
-args.forEach((arg, i) => {
-    if (arg === '--out'   || arg === '-o') outpath = args[i + 1];
-    if (arg === '--allow-hash-mismatch') allowHashMismatch = true; // undocumented flag, temporary workaround for a bug with compression
+const {
+    positionals: [rpxPathRaw, patchFilePathRaw], values: {
+        out: outPathRaw,
+        'allow-hash-mismatch': allowHashMismatch,
+    }
+} = util.parseArgs({
+    args: process.argv.slice(3),
+    allowPositionals: true,
+    options: {
+        out: { type: 'string',  short: 'o' },
+        'allow-hash-mismatch': { type: 'boolean', default: false }, //! undocumented debug only option
+    }
 });
-if (!rpxPath || rpxPath[0] === '-') abort('No base RPX file provided! The first positional argument must be the path to the base RPX to patch.');
-if (!patchFilePath || patchFilePath[0] === '-') abort('No patch file provided! The second positional argument must be the path to the Tachyon patch file to apply.');
-if (outpath) {
-    if (['.rpx', '.rpl', '.elf'].includes(path.extname(outpath).toLowerCase())) abort('Output path may not contain the file extension, only the name.');
-    outpath = path.resolve(cwd, outpath);
-}
-rpxPath = path.resolve(cwd, rpxPath);
-patchFilePath = path.resolve(cwd, patchFilePath);
+
+const outPath = outPathRaw ? (
+    ['.rpx', '.rpl', '.elf'].includes(path.extname(outPathRaw).toLowerCase()) ?
+        abort('Output path may not contain the file extension, only the name.') : path.resolve(cwd, outPathRaw)
+) : null;
+if (!rpxPathRaw) abort('No base RPX file provided! The first positional argument must be the path to the base RPX to patch.');
+if (!patchFilePathRaw) abort('No patch file provided! The second positional argument must be the path to the Tachyon patch file to apply.');
+const rpxPath = path.resolve(cwd, rpxPathRaw);
+const patchFilePath = path.resolve(cwd, patchFilePathRaw);
 
 if (!fs.existsSync(rpxPath) || fs.statSync(rpxPath).isDirectory()) abort('Base RPX file not found!');
 if (!fs.existsSync(patchFilePath) || fs.statSync(patchFilePath).isDirectory()) abort('Patch file not found!');
@@ -68,7 +75,7 @@ const rpx = new RPL(rpxData, { parseRelocs: true });
 patchRPX(new RPL(oFile), rpx, patches, projName, addrs);
 
 const defaultSavePath = rpxPath.split('.').slice(0, -1).join('.');
-const saved = rpx.save(outpath ?? `${defaultSavePath}.${projName}.${target}`, true);
+const saved = rpx.save(outPath ?? `${defaultSavePath}.${projName}.${target}`, true);
 const outHash = crc.crc32(saved.filedata);
 if (outHash !== expectedOutputRPXHash) {
     if (allowHashMismatch) {

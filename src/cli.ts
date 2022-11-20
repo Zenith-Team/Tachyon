@@ -16,6 +16,15 @@ try {
             process.exit();
     }
 } catch (err) {
+    const code = Reflect.get(err as object, 'code') as string | number | undefined;
+    if (typeof code === 'string' && code.startsWith('ERR_PARSE_ARGS_')) {
+        if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
+            console.error('Invalid arguments: ' + (<Error>err).message.split(' To specify a ')[0]!);
+        } else {
+            console.error(`Invalid arguments: ${(<Error>err).message}`);
+        }
+        process.exit(1);
+    }
     if (process.env.TACHYON_DEBUG) throw err;
     console.error(
         'Something has gone catastrophically wrong!\n' +

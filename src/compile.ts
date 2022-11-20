@@ -161,11 +161,11 @@ patchRPX(oFile, rpx, patches, project.name, symbolMap.converter);
 //*--------------------
 //* Step 5: Save RPX
 //*--------------------
-console.info('Saving RPX...');
+console.info('Saving...');
 
 const defaultSavePath = path.join(project.rpxDir, `${project.name}.${target}`);
 const saved = rpx.save(outPath ?? defaultSavePath, produceRPX);
-console.info(`Saved RPX to: ${saved.filepath}`);
+console.info(`Saved ${produceRPX ? 'RPX' : 'ELF'} to: ${saved.filepath}`);
 
 //*--------------------
 //* Step 5+: Generate TYPF file

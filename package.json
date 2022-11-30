@@ -7,10 +7,10 @@
   "private": true,
   "dependencies": {
     "@foxglove/crc": "^0.0.3",
-    "@types/node": "^18.11.9",
+    "@types/node": "^18.11.10",
     "chalk": "^5.1.2",
     "rpxlib": "^0.5.1",
-    "typescript": "^4.8.4",
+    "typescript": "^4.9.3",
     "yaml": "^2.1.3"
   },
   "scripts": {
@@ -25,10 +25,10 @@
     "tachyon": "dist/cli.js"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.43.0",
-    "@typescript-eslint/parser": "^5.43.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
     "eslint": "^8.28.0",
     "eslint-plugin-deprecation": "^1.3.3",
-    "eslint-plugin-unicorn": "^44.0.2"
+    "eslint-plugin-unicorn": "^45.0.1"
   }
 }

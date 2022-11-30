@@ -4,6 +4,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 const args = process.argv.slice(2);
 
+const [nodeMajor, nodeMinor] = process.versions.node.split('.');
+if (Number(nodeMajor) < 18 || (Number(nodeMajor) === 18 && Number(nodeMinor) < 11)) {
+    console.error(`Outdated Node.js version (${process.versions.node}) detected. Please update to Node.js 18.11 or higher.`);
+    process.exit(0);
+}
+
 /* eslint-disable no-fallthrough */
 try {
     // Process commands

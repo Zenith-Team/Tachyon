@@ -1,6 +1,6 @@
 ﻿import fs from 'fs';
 import path from 'path';
-import yamlLib from 'yaml';
+import yamlLib, { YAMLParseError } from 'yaml';
 import { abort } from './utils.js';
 import {
     BranchHook, FuncptrHook, Hook, HookYAML, MultiNopHook, NopHook, PatchHook, ReturnHook, ReturnValueHook
@@ -13,18 +13,21 @@ interface ModuleYAML {
 
 export class Module {
     constructor(yamlPath: string) {
+        const moduleName = path.basename(yamlPath, '.yaml');
         try {
             const yaml = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8')) as ModuleYAML;
 
+            if (!(yaml.Files instanceof Array)) abort(`Module ${moduleName} is missing a "Files" property, or it is not a list.`);
             for (const file of yaml.Files) {
                 if      (file.endsWith('.cpp')) this.cppFiles.push(file);
                 else if (file.endsWith('.S'))   this.asmFiles.push(file);
-                else console.error('Unknown file:', file);
+                else console.warn('Ignoring file with unknown extension:', file, '(in module ' + moduleName + ')');
             }
 
+            if (!(yaml.Hooks instanceof Array)) abort(`Module ${moduleName} is missing a "Hooks" property, or it is not a list.`);
             for (const hook of yaml.Hooks) {
-                if (Number.isSafeInteger(hook.addr)) {
-                    abort(`Invalid address for hook #${yaml.Hooks.indexOf(hook)+1} of type ${hook.type} in module ${path.basename(yamlPath, '.yaml')}`);
+                if (!Number.isSafeInteger(Number(hook.addr))) {
+                    abort(`Invalid address "${hook.addr}" for hook #${yaml.Hooks.indexOf(hook) + 1} of type ${hook.type} in module ${moduleName}`);
                 }
                 switch (hook.type) {
                     case 'patch':       this.hooks.push(new PatchHook(hook)); break;
@@ -34,11 +37,16 @@ export class Module {
                     case 'return':      this.hooks.push(new ReturnHook(hook)); break;
                     case 'branch':      this.hooks.push(new BranchHook(hook)); break;
                     case 'funcptr':     this.hooks.push(new FuncptrHook(hook)); break;
-                    default: console.error('Unknown hook type:', hook.type);
+                    default: abort(`Unknown hook type: ${hook.type} (in module ${moduleName})`);
                 }
             }
-        } catch {
-            console.error('Invalid module:', yamlPath);
+        } catch (e: unknown) {
+            console.error(`Failed to parse YAML file for module ${moduleName}`);
+            if (e instanceof YAMLParseError) {
+                abort(`Reason: ${e.message} (in ${yamlPath}:${e.linePos?.[0].line ?? e.pos[0]}:${e.linePos?.[0].col ?? e.pos[1]})`);
+            } else if (process.env.TACHYON_DEBUG) {
+                console.error('Reason (Debug):', e); process.exit(0);
+            } else abort(`Reason: Unknown error, run in debug mode for more information.`);
         }
     }
 

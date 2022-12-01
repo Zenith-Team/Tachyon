@@ -115,7 +115,7 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
                 targetSection = rpxSections.data;
                 targetRelocSection = rpxSections.reladata;
             } else {
-                console.error(
+                abort(
                     `Patch of data "${data}" at address 0x${
                         hex(address)
                     } is within the data sections bounds but outside all known patchable data sections (.data & .rodata)`
@@ -123,17 +123,17 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
                 continue;
             }
         } else {
-            console.error(`Patch of data "${data}" at address 0x${hex(address)} is out of bounds.`);
+            abort(`Patch of data "${data}" at address 0x${hex(address)} is out of bounds.`);
             continue;
         }
 
         const dataBytes = Buffer.from(data, 'hex');
         if (dataBytes.byteLength !== data.length / 2) {
-            console.error(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is malformed: "${data}"`);
+            abort(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is malformed: "${data}"`);
             continue;
         }
         if (dataBytes.byteLength % 2) {
-            console.error(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is not 2-byte aligned: ${data}`);
+            abort(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is not 2-byte aligned: "${data}"`);
             continue;
         }
 
@@ -153,7 +153,7 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
             const rel = targetRelocSection.relocations.get(address + i);
             if (!rel) continue;
             targetRelocSection.relocations.deleteAt(address + i);
-            //if (process.env.TACHYON_DEBUG) console.debug(
+            //console['debug'](
             //    `Deleted relocation at address 0x${hex(address + i)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
             //);
         }

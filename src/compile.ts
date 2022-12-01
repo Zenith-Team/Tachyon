@@ -1,4 +1,5 @@
-﻿import fs from 'fs';
+﻿import $ from 'chalk';
+import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import util from 'util';
@@ -96,7 +97,7 @@ const objsPath = path.join(metaPath, 'objs');
 if (noCache) {
     fs.rmSync(objsPath, { recursive: true, force: true });
     fs.mkdirSync(objsPath);
-    console.info('Compilation cache cleared.');
+    console.warn('Compilation cache cleared.');
 }
 else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
@@ -128,7 +129,7 @@ for (const asmfile of project.asmFiles) {
     }
     asmCache[asmfilePath] = asmfileMtime;
 
-    console.info(
+    console.log(
         'Assembling', asmfile,
         modifiedDep ? `because ${path.relative(project.sourceDir, modifiedDep)} has changed` : ''
     );
@@ -165,14 +166,14 @@ console.info('Saving...');
 
 const defaultSavePath = path.join(project.rpxDir, `${project.name}.${target}`);
 const saved = rpx.save(outPath ?? defaultSavePath, produceRPX);
-console.info(`Saved ${produceRPX ? 'RPX' : 'ELF'} to: ${saved.filepath}`);
+console.success(`Saved ${produceRPX ? 'RPX' : 'ELF'} to: ${$.cyanBright(saved.filepath)}`);
 
 //*--------------------
 //* Step 5+: Generate TYPF file
 //*--------------------
 
 if (produceTYPF) {
-    console.info('[TYPF] Generating patch file...');
+    console.info('Generating Tachyon patch file...');
     const encoder = new TextEncoder();
     const magic = new Uint8Array([0xC5, 0xFC, 0x9F, 0x01]); // "CS FC PF" <format version>
     const patchesData = encoder.encode(JSON.stringify(patches));
@@ -196,7 +197,7 @@ if (produceTYPF) {
 
     const patchFilePath = path.join(path.dirname(saved.filepath), `${project.name}.${target}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);
-    console.info('[TYPF] Saved patch file to:', patchFilePath);
+    console.success('[TYPF] Saved patch file to:', $.cyanBright(patchFilePath));
 }
 
-console.info(`Finished. Build took ${(performance.now() - timer).toFixed(3)}ms.`);
+console.success($.bold('Finished.'), 'Build took', $.yellow((performance.now() - timer).toFixed(3) + 'ms'));

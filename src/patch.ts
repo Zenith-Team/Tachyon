@@ -7,6 +7,7 @@ import util from 'util';
 import path from 'path';
 import zlib from 'zlib';
 import fs from 'fs';
+import $ from 'chalk';
 const cwd = process.cwd();
 
 const {
@@ -66,7 +67,7 @@ const rpxHash = crc.crc32(rpxData);
 if (rpxHash !== expectedInputRPXHash) {
     if (allowHashMismatch) {
         console.warn(
-            `WARNING: The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}!` +
+            `The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}!` +
             '\nProceeding anyway due to --allow-hash-mismatch flag being set.'
         );
     } else abort(`The provided RPX of hash ${hex(rpxHash)} is not compatible with this patch made for an RPX of hash ${hex(expectedInputRPXHash)}`);
@@ -80,7 +81,7 @@ const outHash = crc.crc32(saved.filedata);
 if (outHash !== expectedOutputRPXHash) {
     if (allowHashMismatch) {
         console.warn(
-            `WARNING: The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}!` +
+            `The output patched RPX hash ${hex(outHash)} does not match the expected output hash ${hex(expectedOutputRPXHash)}!` +
             '\nProceeding anyway due to --allow-hash-mismatch flag being set.'
         );
     } else {
@@ -90,4 +91,4 @@ if (outHash !== expectedOutputRPXHash) {
 }
 if (process.env.TACHYON_LIB_MODE) {
     process.env.TACHYON_LIB_RETURN = saved.filepath;
-} else console.info(`Patch successful. Saved patched RPX to: ${saved.filepath}`);
+} else console.success('Patch successful. Saved patched RPX to:', $.cyanBright(saved.filepath));

@@ -1,5 +1,5 @@
 ﻿import { oFile, symbolMap } from './compile.js';
-import { hex, s32, u32 } from './utils.js';
+import { abort, hex, s32, u32 } from './utils.js';
 import { SymbolSection } from 'rpxlib';
 
 export interface HookYAML {
@@ -32,11 +32,14 @@ export class PatchHook extends Hook {
         super();
         this.address = yaml.addr;
 
-        if (yaml.data.includes('0x')) {
-            console.warn('Warning: patch data is considered to be hex bytes, ignoring unnecessary "0x"');
+        if (yaml.data.startsWith('0x')) {
+            console.warn(
+                `Patch data is automatically considered to be hex bytes, ignoring unnecessary "0x" in data of patch at address ${yaml.addr}`
+            );
+            yaml.data = yaml.data.slice(2);
         }
 
-        this.data = yaml.data.replaceAll('0x', '');
+        this.data = yaml.data;
     }
 
     public override get(): Patch {
@@ -127,7 +130,7 @@ export class BranchHook extends Hook {
 
         if      (this.instr === 'b')  instr |= 0x48000000;
         else if (this.instr === 'bl') instr |= 0x48000001;
-        else console.warn('Unknown branch instruction:', this.instr);
+        else abort(`Unknown branch instruction "${this.instr}" in branch hook at address ${this.address} to function ${this.func}`);
 
         return {
             address: this.source(),

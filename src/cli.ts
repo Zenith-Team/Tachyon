@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './sideload.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -40,29 +41,37 @@ try {
 }
 
 if (args.includes('-h') || args.includes('--help')) {
-    console.info(`Usage: tachyon [flags] <command> [command specific options]
+    const { default: $ } = await import('chalk');
+    const b = $.blueBright;
+    const c = $.cyanBright;
+    const G = $.yellow;
+    const y = $.yellowBright;
+    const d = $.gray;
+    const h = $.underline.bold;
+    const C = $.gray(',');
+    console.log(`${h('Usage')}${$.bold(': tachyon [flags] <command> [command specific options]')}
 
-Valid flags:
-    -h, --help             Show this message.
-    -v, --version          Show installed Tachyon version number.
+${h('Valid flags')}
+    ${b('-h')}${C} ${b('--help')}              Show this message.
+    ${b('-v')}${C} ${b('--version')}           Show installed Tachyon version number.
 
-Valid commands:
-    compile                Compile a custom code project into an RPX/ELF.
-    patch                  Patch an RPX with a precompiled patch file.
+${h('Valid commands')}
+    ${c('compile')}                 Compile a custom code project into an RPX/ELF.
+    ${c('patch')}                   Patch an RPX with a precompiled patch file.
 
-[Command specific options]
-compile <target>
-    -p, --project <path>   Path to custom code project root folder. (default: "./")
-    -T, --threads <number> Number of parallel threads to use for compilation. (default: 2)
-    -g, --ghs <path>       Path to Green Hills Software MULTI installation folder. (default: "C:/ghs/multi5327")
-    -o, --out <path>       Path to save the output file to. (default: next to base rpx)
-    -m, --meta <string>    Name of the project metadata folder. (default: "project")
-    -r, --rpx              Output compressed RPX instead of uncompressed ELF.
-    -t, --typf             Output a Tachyon patch file next to the ELF/RPX.
-    --no-cache             Clear the compilation cache before compiling.
+${h('Command specific options')}
+${c('compile')} ${y('<target>')}
+    ${b('-p')}${C} ${b('--project')} ${G('<path>')}    Path to custom code project root folder. ${d('(default: "./")')}
+    ${b('-T')}${C} ${b('--threads')} ${G('<number>')}  Number of parallel threads to use for compilation. ${d('(default: 2)')}
+    ${b('-g')}${C} ${b('--ghs')} ${G('<path>')}        Path to Green Hills Software MULTI installation folder. ${d('(default: "C:/ghs/multi5327")')}
+    ${b('-o')}${C} ${b('--out')} ${G('<path>')}        Path to save the output file to. ${d('(default: next to base rpx)')}
+    ${b('-m')}${C} ${b('--meta')} ${G('<string>')}     Name of the project metadata folder. ${d('(default: "project")')}
+    ${b('-r')}${C} ${b('--rpx')}               Output compressed RPX instead of uncompressed ELF.
+    ${b('-t')}${C} ${b('--typf')}              Output a Tachyon patch file next to the ELF/RPX.
+    ${b('--no-cache')}              Clear the compilation cache before compiling.
 
-patch <base_rpx_path> <patch_file_path>
-    -o, --out              Path to save the output RPX to. (default: next to base RPX)
+${c('patch')} ${y('<base_rpx_path> <patch_file_path>')}
+    ${b('-o')}${C} ${b('--out')} ${G('<path>')}        Path to save the output RPX to. ${d('(default: next to base RPX)')}
 `);
     if (!process.env.TACHYON_LIB_MODE) process.exit();
 }

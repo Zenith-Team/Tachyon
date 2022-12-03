@@ -2,9 +2,11 @@ declare global {
     namespace NodeJS {
         interface ProcessEnv {
             GHS_ROOT: string | undefined;
+            CEMU_ROOT: string | undefined;
             TACHYON_LIB_MODE: string | undefined;
             TACHYON_LIB_RETURN: string | undefined;
             readonly TACHYON_DEBUG: string | undefined;
+            readonly TACHYON_DEFAULT_GAME_ROOT: string | undefined;
         }
     }
 }

@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "tachyon",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "license": "MIT",
   "main": "dist/lib.js",
   "private": true,
@@ -10,6 +10,7 @@
     "@types/node": "^18.11.10",
     "chalk": "^5.1.2",
     "rpxlib": "^0.5.1",
+    "tail": "^2.2.4",
     "typescript": "^4.9.3",
     "yaml": "^2.1.3"
   },
@@ -25,6 +26,7 @@
     "tachyon": "dist/cli.js"
   },
   "devDependencies": {
+    "@types/tail": "^2.2.1",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "eslint": "^8.28.0",

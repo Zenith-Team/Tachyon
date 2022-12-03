@@ -11,16 +11,23 @@ if (Number(nodeMajor) < 18 || (Number(nodeMajor) === 18 && Number(nodeMinor) < 1
     process.exit(0);
 }
 
-/* eslint-disable no-fallthrough */
+let ranCommand = false;
 try {
     // Process commands
     switch (args[0]) {
         case 'compile':
             await import('./compile.js');
-            process.exit();
+            ranCommand = true;
+            break;
         case 'patch':
             await import('./patch.js');
-            process.exit();
+            ranCommand = true;
+            break;
+        case 'launch': {
+            await (await import('./launch.js')).launch();
+            ranCommand = true;
+            break;
+        }
     }
 } catch (err) {
     const code = Reflect.get(err as object, 'code') as string | number | undefined;
@@ -40,16 +47,17 @@ try {
     process.exit(1);
 }
 
-if (args.includes('-h') || args.includes('--help')) {
-    const { default: $ } = await import('chalk');
-    const b = $.blueBright;
-    const c = $.cyanBright;
-    const G = $.yellow;
-    const y = $.yellowBright;
-    const d = $.gray;
-    const h = $.underline.bold;
-    const C = $.gray(',');
-    console.log(`${h('Usage')}${$.bold(': tachyon [flags] <command> [command specific options]')}
+if (!ranCommand) {
+    if (args.includes('-h') || args.includes('--help')) {
+        const { default: $ } = await import('chalk');
+        const b = $.blueBright;
+        const c = $.cyanBright;
+        const G = $.yellow;
+        const y = $.yellowBright;
+        const d = $.gray;
+        const h = $.underline.bold;
+        const C = $.gray(',');
+        console.log(`${h('Usage')}${$.bold(': tachyon [flags] <command> [command specific options]')}
 
 ${h('Valid flags')}
     ${b('-h')}${C} ${b('--help')}              Show this message.
@@ -73,24 +81,25 @@ ${c('compile')} ${y('<target>')}
 ${c('patch')} ${y('<base_rpx_path> <patch_file_path>')}
     ${b('-o')}${C} ${b('--out')} ${G('<path>')}        Path to save the output RPX to. ${d('(default: next to base RPX)')}
 `);
-    if (!process.env.TACHYON_LIB_MODE) process.exit();
-}
-
-if (args.includes('-v') || args.includes('--version')) {
-    try {
-        const { version } = JSON.parse(
-            fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
-        ) as { version: string };
-        if (!process.env.TACHYON_LIB_MODE) console.info(`Tachyon v${version}`);
-        else process.env.TACHYON_LIB_RETURN = version;
-    } catch (err) {
-        if (process.env.TACHYON_LIB_MODE) throw err;
-        else console.error('Failed to get version.');
+        if (!process.env.TACHYON_LIB_MODE) process.exit();
     }
-    if (!process.env.TACHYON_LIB_MODE) process.exit();
-}
 
-if (!process.env.TACHYON_LIB_MODE) {
-    console.error('Unknown command or options, run "tachyon --help" for information.');
-    process.exit();
+    if (args.includes('-v') || args.includes('--version')) {
+        try {
+            const { version } = JSON.parse(
+                fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
+            ) as { version: string; };
+            if (!process.env.TACHYON_LIB_MODE) console.info(`Tachyon v${version}`);
+            else process.env.TACHYON_LIB_RETURN = version;
+        } catch (err) {
+            if (process.env.TACHYON_LIB_MODE) throw err;
+            else console.error('Failed to get version.');
+        }
+        if (!process.env.TACHYON_LIB_MODE) process.exit();
+    }
+
+    if (!process.env.TACHYON_LIB_MODE) {
+        console.error('Unknown command or options, run "tachyon --help" for information.');
+        process.exit();
+    }
 }

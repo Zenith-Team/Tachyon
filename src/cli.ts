@@ -66,6 +66,7 @@ ${h('Valid flags')}
 ${h('Valid commands')}
     ${c('compile')}                 Compile a custom code project into an RPX/ELF.
     ${c('patch')}                   Patch an RPX with a precompiled patch file.
+    ${c('launch')}                  Quickly launch an RPX/ELF file from anywhere with live logs.
 
 ${h('Command specific options')}
 ${c('compile')} ${y('<target>')}
@@ -80,7 +81,14 @@ ${c('compile')} ${y('<target>')}
 
 ${c('patch')} ${y('<base_rpx_path> <patch_file_path>')}
     ${b('-o')}${C} ${b('--out')} ${G('<path>')}        Path to save the output RPX to. ${d('(default: next to base RPX)')}
-`);
+
+${c('launch')} ${y('<rpx_path>')}
+    ${b('-c')}${C} ${b('--cemu')} ${G('<path>')}       Path to Cemu installation folder. ${d('(default: CEMU_ROOT env. variable)')}
+    ${b('-g')}${C} ${b('--game')} ${G('<path>')}       Path to root folder of the game filesystem to use. ${d('(default: TACHYON_DEFAULT_GAME_ROOT env. variable)')}
+    ${b('-A')}${C} ${b('--allow')} ${G('<string>')}    Types of logs allowed to print. Multiple use. ${d('(default: "all")')}
+    ${b('-B')}${C} ${b('--block')} ${G('<string>')}    Types of logs blocked from printing. Multiple use.
+    ${b('-f')}${C} ${b('--fullscreen')}        Launch in fullscreen mode.
+`.trimEnd());
         if (!process.env.TACHYON_LIB_MODE) process.exit();
     }
 

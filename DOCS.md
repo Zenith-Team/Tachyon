@@ -12,6 +12,7 @@ This document does not include command-line usage! All information you need for 
 - [Address Offsets Maps](#address-offsets-maps) (conv/*.offs)
 - [Linker Directives](#linker-directives) (linker/*.ld)
 - [Compilation Caches](#compilation-caches)
+- [Console Compilation](#console-compilation)
 
 ### Environment Variables
 **Note:** *All environment variables are optional and have less priority than their equivalent flags.*

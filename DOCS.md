@@ -14,7 +14,10 @@ This document does not include command-line usage! All information you need for 
 - [Compilation Caches](#compilation-caches)
 
 ### Environment Variables
-Instead of passing the `--ghs` option to the `compile` command every time, Tachyon supports the `GHS_ROOT` environment variable to permanently store the path to GHS. (Optional)
+**Note:** *All environment variables are optional and have less priority than their equivalent flags.*
+- `GHS_ROOT`: Instead of passing the `--ghs` option to the `compile` command every time, Tachyon supports this environment variable to permanently store the path to GHS.
+- `CEMU_ROOT`: Instead of passing the `--cemu` option to the `launch` command every time, Tachyon supports this environment variable to permanently store the path to Cemu.
+- `TACHYON_DEFAULT_GAME_ROOT`: Instead of passing the `--game` option to the `launch` command every time, Tachyon supports this environment variable to permanently store the path to a default game folder.
 
 ### Project Folder Structure
 All Tachyon-based projects must use the following minimal folder structure:
@@ -142,7 +145,19 @@ This section documents the different types of structures you can write on the `H
 - `patch`
     - The most basic and versatile hook, simply inserts `data` at `addr`
     - **Additional field:** `data`
-        - A hex string of the bytes to insert that the `addr`
+        - A value to be encoded according to `datatype` and inserted at the `addr`
+    - **Optional field:** `datatype` (Default: `raw`)
+        - A string representing a C++ data type to interpret the value of `data` as, the supported types are:
+            - `raw`: A sequence of hex bytes, value of `data` should be a string.
+            - `f32`/`f64`/`float`/`double`: A 32/64 bit floating point number, value of `data` should be a numeric literal.
+            - `u16`/`u32`/`u64`/`ushort`/`uint`/`ulonglong`: A 16/32/64 bit unsigned integer, value of `data` should be a positive numeric literal.
+            - `s16`/`s32`/`s64`/`short`/`int`/`longlong`: A 16/32/64 bit signed integer, value of `data` should be a numeric literal.
+            - `char`: A single char patch is not supported and will result in misaligned data. This is also why `u8`/`s8` don't exist. Refer to array types below.
+            - `string`: A null-terminated C string. Due to alignment, must be an odd length. Null terminator is automatically added. Value of `data` should be a string.
+            - `#[]`: Where `#` is any of the types above, you may suffix a type with `[]` to make an array of it. Value of `data` will be an array of values of the respective type.
+                - The difference between `char[]` and `string` is a `char[]` doesn't automatically null-terminate and uses **ASCII** encoding, while `string` uses **UTF8**.
+                - To write a null character on a `char[]`, write down `null` as a literal.
+                - Multidimensional arrays such as `int[][]` are not supported.
 - `nop`
     - A shorthand for a `patch` hook with `60000000` (`nop`) as `data`
 - `multinop`
@@ -164,7 +179,7 @@ This section documents the different types of structures you can write on the `H
     - **Additional field:** `func`
         - The symbol whose address to write at `addr`
 
-All hook fields are required. There are no optional hook fields.
+*All hook fields are required unless explicitly marked as optional.*
 
 ### Symbol Maps
 The primary symbol map for a project is located at `[MetadataDir]/syms/main.map` and has a very basic syntax similar to any other symbol map file.

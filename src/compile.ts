@@ -142,7 +142,7 @@ for (const asmfile of project.asmFiles) {
     );
     const asppcArgs = [
         `-I${asppcIncludeDir}/`, '-o', `${path.join(objsPath, path.basename(asmfile))}.o`,
-        ...extraAssemblerFlags, path.relative(projectPath, asmfilePath)
+        '-cpu=espresso', '-regs', ...extraAssemblerFlags, path.relative(projectPath, asmfilePath)
     ];
     const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');

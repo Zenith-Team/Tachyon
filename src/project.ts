@@ -136,7 +136,7 @@ primaryTarget=ppc_cos_ndebug.tgt
         fs.writeFileSync(path.join(this.meta, 'project.gpj'), gpj.join('\n'));
     }
 
-    public link(map: SymbolMap): void {
+    public link(map: SymbolMap, extraLinkerFlags: string[] = []): void {
         fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld', `MEMORY {
 \ttext : origin = 0x${hex(map.converter.text)}, length = 0x${hex(DataBaseAddress - map.converter.text)}
 \tdata : origin = 0x${hex(map.converter.data)}, length = 0x${hex(LoadBaseAddress - map.converter.data)}
@@ -156,7 +156,7 @@ SECTIONS {
         let elxrArgs = [
             '-T', path.join(this.meta, 'syms', this.targetAddrMap + '.x'),
             '-T', path.join(this.meta, 'linker', this.targetAddrMap + '.ld'),
-            '-o', path.join(this.meta, this.name + '.o')
+            '-o', path.join(this.meta, this.name + '.o'), ...extraLinkerFlags
         ];
         let objFiles: string[] = [];
 

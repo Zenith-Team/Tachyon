@@ -24,6 +24,7 @@ const {
         meta: metaFolderName,
         ghs: ghsPathRaw,
         out: outPathRaw,
+        aflag, cflag, lflag,
         rpx: produceRPX,
         typf: produceTYPF,
         'no-cache': noCache
@@ -37,6 +38,9 @@ const {
         meta:       { type: 'string',  short: 'm', default: 'project' },
         ghs:        { type: 'string',  short: 'g', default: process.env.GHS_ROOT ?? 'C:/ghs/multi5327' },
         out:        { type: 'string',  short: 'o' },
+        aflag:      { type: 'string',  short: 'A', multiple: true },
+        cflag:      { type: 'string',  short: 'C', multiple: true },
+        lflag:      { type: 'string',  short: 'L', multiple: true },
         rpx:        { type: 'boolean', default: false, short: 'r' },
         typf:       { type: 'boolean', default: false, short: 't' },
         'no-cache': { type: 'boolean', default: false },
@@ -45,6 +49,9 @@ const {
 if (targets.length === 0) abort('No targets specified.');
 if (targets.length > 1) abort('Multiple targets are not yet supported.');
 const target = targets[0]!;
+const extraAssemblerFlags = aflag ?? [];
+const extraCompilerFlags = cflag ?? [];
+const extraLinkerFlags = lflag ?? [];
 
 const threads = Number(threadsRaw);
 if (!Number.isSafeInteger(threads) || threads <= 0) abort('Invalid number of threads.');
@@ -103,7 +110,7 @@ else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
 const gbuildCommand = path.join(project.ghsPath, 'gbuild.exe');
 const gbuildArgs = [
-    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`,
+    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`, ...extraCompilerFlags
 ];
 const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectPath, stdio: 'inherit' });
 if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort('gbuild command failed!');
@@ -134,8 +141,8 @@ for (const asmfile of project.asmFiles) {
         modifiedDep ? `because ${path.relative(project.sourceDir, modifiedDep)} has changed` : ''
     );
     const asppcArgs = [
-        `-I${asppcIncludeDir}/`, '-o',
-        `${path.join(objsPath, path.basename(asmfile))}.o`, path.relative(projectPath, asmfilePath)
+        `-I${asppcIncludeDir}/`, '-o', `${path.join(objsPath, path.basename(asmfile))}.o`,
+        ...extraAssemblerFlags, path.relative(projectPath, asmfilePath)
     ];
     const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');
@@ -146,7 +153,7 @@ fs.writeFileSync(asmCachePath, JSON.stringify(Object.assign(asmCache, depCache))
 //* Step 3: Link
 //*--------------------
 console.info('Linking...');
-project.link(symbolMap);
+project.link(symbolMap, extraLinkerFlags);
 
 //*--------------------
 //* Step 4: Patch

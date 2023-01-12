@@ -25,7 +25,7 @@ const {
         ghs: ghsPathRaw,
         out: outPathRaw,
         aflag, cflag, lflag,
-        rpx: produceRPX,
+        rpx: produceRPXFlag,
         typf: produceTYPF,
         'no-cache': noCache
     }
@@ -72,6 +72,12 @@ if (!fs.existsSync(path.join(metaPath, 'syms')))             abort('Project meta
 if (!fs.existsSync(path.join(metaPath, 'syms', 'main.map'))) abort('Project symbols folder does not have a main.map file!');
 if (!fs.existsSync(path.join(metaPath, 'conv')))             abort('Project meta folder does not have a "conv" folder!');
 if (!fs.existsSync(path.join(metaPath, 'linker')))           fs.mkdirSync(path.join(metaPath, 'linker'));
+
+let produceRPX = produceRPXFlag;
+if (produceTYPF && !produceRPX) {
+    console.warn('TYPF generation requires RPX output, implicitly enabling --rpx flag.');
+    produceRPX = true;
+}
 
 const timer = performance.now();
 
@@ -204,7 +210,7 @@ if (produceTYPF) {
 
     const patchFilePath = path.join(path.dirname(saved.filepath), `${project.name}.${target}.typf`);
     fs.writeFileSync(patchFilePath, patchFileData);
-    console.success('[TYPF] Saved patch file to:', $.cyanBright(patchFilePath));
+    console.success('Saved TYPF to:', $.cyanBright(patchFilePath));
 }
 
 console.success($.bold('Finished.'), 'Build took', $.yellow((performance.now() - timer).toFixed(3) + 'ms'));

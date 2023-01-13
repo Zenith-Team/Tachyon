@@ -7,7 +7,6 @@ import {
 } from './hooks.js';
 
 interface ModuleYAML {
-    Files: string[];
     Hooks: HookYAML[];
 }
 
@@ -16,13 +15,6 @@ export class Module {
         const moduleName = path.basename(yamlPath, '.yaml');
         try {
             const yaml = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8')) as ModuleYAML;
-
-            if (!(yaml.Files instanceof Array)) abort(`Module ${moduleName} is missing a "Files" property, or it is not a list.`);
-            for (const file of yaml.Files) {
-                if      (file.endsWith('.cpp')) this.cppFiles.push(file);
-                else if (file.endsWith('.S'))   this.asmFiles.push(file);
-                else console.warn('Ignoring file with unknown extension:', file, '(in module ' + moduleName + ')');
-            }
 
             if (!(yaml.Hooks instanceof Array)) abort(`Module ${moduleName} is missing a "Hooks" property, or it is not a list.`);
             for (const hook of yaml.Hooks) {
@@ -50,7 +42,5 @@ export class Module {
         }
     }
 
-    public cppFiles: string[] = [];
-    public asmFiles: string[] = [];
     public hooks: Hook[] = [];
 }

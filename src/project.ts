@@ -5,7 +5,7 @@ import { Patch } from './hooks.js';
 import { Module } from './module.js';
 import { spawnSync } from 'child_process';
 import { SymbolMap } from './symbolmap.js';
-import { abort, hex } from './utils.js';
+import { abort, hex, readdirRecursive } from './utils.js';
 import { DataBaseAddress, LoadBaseAddress } from 'rpxlib';
 
 interface ProjectYAML {
@@ -15,7 +15,6 @@ interface ProjectYAML {
     SourceDir?: string, // Default: 'src'
     RpxDir?: string, // Default: 'rpxs'
     Defines?: string[], // Default: []
-    Modules: string[], //! Required
     Targets: Record<string, ProjectTarget | null>, //! Required
 }
 
@@ -24,9 +23,7 @@ interface ProjectTarget {
     AddrMap?: string, // Default: <TARGET_NAME>
     BaseRpx?: string, // Default: <TARGET_NAME>
     Defines?: string[], // Default: []
-    Modules?: string[], // Default: []
     'Remove/Defines'?: string[], // Default: []
-    'Remove/Modules'?: string[], // Default: []
 }
 
 export class Project {
@@ -53,9 +50,7 @@ export class Project {
             if (target in yaml.Targets) {
                 const tgt = yaml.Targets[target] ?? {};
                 tgt['Remove/Defines'] ??= [];
-                tgt['Remove/Modules'] ??= [];
                 tgt.Defines ??= [];
-                tgt.Modules ??= [];
                 if (tgt.Extends) {
                     const templateName = 'Template/' + tgt.Extends;
                     if (templateName in yaml.Targets) {
@@ -64,9 +59,7 @@ export class Project {
                         tgt.AddrMap ??= template.AddrMap ?? tgt.Extends;
                         tgt.BaseRpx ??= template.BaseRpx ?? tgt.Extends;
                         tgt['Remove/Defines'].push(...(template['Remove/Defines'] ?? []));
-                        tgt['Remove/Modules'].push(...(template['Remove/Modules'] ?? []));
                         tgt.Defines.push(...(template.Defines ?? []));
-                        tgt.Modules.push(...(template.Modules ?? []));
                     } else abort(`Target ${target} extends unknown template ${tgt.Extends}.`);
                 } else {
                     tgt.AddrMap ??= target;
@@ -74,10 +67,8 @@ export class Project {
                 }
                 this.defines = this.defines.filter(define => !tgt['Remove/Defines']!.includes(define));
                 this.defines.push(...tgt.Defines);
-                yaml.Modules = yaml.Modules.filter(module => !tgt['Remove/Modules']!.includes(module));
-                yaml.Modules.push(...tgt.Modules);
-                for (const module of yaml.Modules) {
-                    const moduleobj = new Module(path.join(this.modulesDir, module + '.yaml'));
+                for (const module of fs.readdirSync(this.modulesDir)) {
+                    const moduleobj = new Module(path.join(this.modulesDir, module));
                     this.modules.push(moduleobj);
                 }
                 this.targetAddrMap = tgt.AddrMap;
@@ -96,14 +87,6 @@ export class Project {
     }
 
     public createGPJ(): void {
-        for (const module of this.modules) {
-            for (const file of module.cppFiles) {
-                this.cppFiles.push(file);
-            }
-            for (const file of module.asmFiles) {
-                this.asmFiles.push(file);
-            }
-        }
         const gpj: string[] = [];
         gpj.push(`#!gbuild
 primaryTarget=ppc_cos_ndebug.tgt
@@ -130,6 +113,11 @@ primaryTarget=ppc_cos_ndebug.tgt
 \t-MD
 \t-I${path.relative(this.meta, this.includeDir)}`
         );
+        
+        for (const file of readdirRecursive(this.sourceDir)) {
+            if (file.endsWith('.cpp')) this.cppFiles.push(path.relative(this.sourceDir, file));
+            else if (file.endsWith('.S')) this.asmFiles.push(path.relative(this.sourceDir, file));
+        }
 
         for (const define of this.defines) gpj.push(`\t-D${define}`);
         for (const cpp of this.cppFiles)   gpj.push(path.join(path.relative(this.meta, this.sourceDir), cpp));

@@ -21,7 +21,7 @@
     "rebuild": "rm -rf dist && npx tsc",
     "lint": "npx eslint src/**/*.ts",
     "lint-fix": "npm run lint -- --fix",
-    "preinstall": "npx tsc"
+    "preinstall": "npm i typescript && npx tsc && npm rm typescript"
   },
   "bin": {
     "tachyon": "dist/cli.js"

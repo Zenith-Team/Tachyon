@@ -68,3 +68,15 @@ export function scanAssemlyFileDependencies(asmfilePath: string, includeDir: str
     }
     return includes;
 }
+
+/**
+ * Recursively get all files in a directory. Returns absolute file paths. Does not give directory entries.
+ */
+export function* readdirRecursive(dir: string): Generator<string> {
+    const dirents = fs.readdirSync(dir, { withFileTypes: true });
+    for (const dirent of dirents) {
+        const res = path.resolve(dir, dirent.name);
+        if (dirent.isDirectory()) yield* readdirRecursive(res);
+        else yield res;
+    }
+}

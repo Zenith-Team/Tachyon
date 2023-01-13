@@ -10,16 +10,8 @@ An experimental Wii U custom code project compiler.
 
 ## Installation
 ```sh
-npm i -g Zenith-Team/Tachyon
+npm i -g Zenith-Team/Tachyon#next
 ```
-#### Alternatively...
-If you run into permission errors with `npm` using the command above, you can install directly through `git`:
-```sh
-git clone https://github.com/Zenith-Team/Tachyon tachyon && cd tachyon && npm i -D && npm link && cd ..
-```
-> **Note**: You still need `npm` installed.
-
-> **Warning**: Make sure you run the alternative command in a folder you don't mind leaving a new `tachyon` folder on, as this command behaves like a portable installation.
 
 ## Usage
 ```sh

@@ -8,6 +8,7 @@
   "dependencies": {
     "@foxglove/crc": "^0.0.3",
     "@types/node": "^18.11.15",
+    "@types/tail": "^2.2.1",
     "chalk": "^5.2.0",
     "rpxlib": "^0.5.1",
     "tail": "^2.2.4",
@@ -26,7 +27,6 @@
     "tachyon": "dist/cli.js"
   },
   "devDependencies": {
-    "@types/tail": "^2.2.1",
     "@typescript-eslint/eslint-plugin": "^5.46.1",
     "@typescript-eslint/parser": "^5.46.1",
     "eslint": "^8.29.0",

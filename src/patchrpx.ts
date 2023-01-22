@@ -170,6 +170,7 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
         );
 
         // Write the patch data
+        //console.debug(`Patching data "${data}" at address 0x${hex(address)} of section ${targetSection.name}`);
         targetSection.data!.set(dataBytes, address - <number>targetSection.addr);
     }
 

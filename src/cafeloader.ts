@@ -4,7 +4,7 @@ import path from 'path';
 import { DataSink, RPL } from 'rpxlib';
 import { SymbolMap } from './symbolmap.js';
 import { Patch } from './hooks.js';
-//import { abort, hex } from './utils.js';
+import { abort, hex } from './utils.js';
 
 export function generateCafeloaderFiles(oFile: RPL, patches: Patch[], map: SymbolMap): void {
     const cafeloaderDir = path.join('out', 'cafeloader');
@@ -49,13 +49,12 @@ export function generateCafeloaderFiles(oFile: RPL, patches: Patch[], map: Symbo
         for (const { address, data } of patches) {
             const patchBytes = Buffer.from(data, 'hex');
             // TODO: These checks are duplicated in patchrpx.ts, they should be unified in the Hook class
-            //if (patchBytes.byteLength !== data.length / 2) {
-            //    abort(`Data of patch at address 0x${hex(address)} is malformed: "${data}"`);
-            //}
-            //if (patchBytes.byteLength % 2) {
-            //    abort(`Data of patch at address 0x${hex(address)} is not 2-byte aligned: "${data}"`);
-            //}
-            //! but in reality for now we can just skip the checks here and let them fail ahead in patchrpx.ts
+            if (patchBytes.byteLength !== data.length / 2) {
+                abort(`Data of patch at address 0x${hex(address)} is malformed: "${data}"`);
+            }
+            if (patchBytes.byteLength % 2) {
+                abort(`Data of patch at address 0x${hex(address)} is not 2-byte aligned: "${data}"`);
+            }
             const patchBuf = Buffer.allocUnsafe(6 + patchBytes.byteLength);
 
             patchBuf.writeUint16BE(patchBytes.byteLength, 0);

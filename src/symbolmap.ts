@@ -117,7 +117,7 @@ export class SymbolMap {
             }
             this.converter = new ConvMap(offsets, addrs, rpxsections);
         } catch {
-            abort(`Invalid conversion map: ${path.join(metaPath, 'conv', targetAddrMap)}`);
+            abort(`Invalid or missing conversion map: ${path.join(metaPath, 'conv', targetAddrMap)}.offs`);
         }
 
         this.convertedLines.push('SECTIONS {');

@@ -11,6 +11,7 @@ import { spawnSync } from 'child_process';
 import { RPL } from 'rpxlib';
 import { patchRPX } from './patchrpx.js';
 import { SymbolMap } from './symbolmap.js';
+import { generateCafeloaderFiles } from './cafeloader.js';
 import { abort, scanAssemlyFileDependencies } from './utils.js';
 
 export let oFile: RPL;
@@ -27,6 +28,7 @@ const {
         aflag, cflag, lflag,
         rpx: produceRPXFlag,
         typf: produceTYPF,
+        console: consoleFlag,
         'no-cache': noCache
     }
 } = util.parseArgs({
@@ -43,6 +45,7 @@ const {
         lflag:      { type: 'string',  short: 'L', multiple: true },
         rpx:        { type: 'boolean', default: false, short: 'r' },
         typf:       { type: 'boolean', default: false, short: 't' },
+        console:    { type: 'string',  default: 'none' },
         'no-cache': { type: 'boolean', default: false },
     }
 });
@@ -79,13 +82,26 @@ if (produceTYPF && !produceRPX) {
     produceRPX = true;
 }
 
+const validConsoleOutputs = ['cafeloader', 'cf', 'none'] as const;
+let consoleOutput: Exclude<typeof validConsoleOutputs[number], 'cf'> = 'none';
+switch (consoleFlag!.toLowerCase() as typeof validConsoleOutputs[number]) {
+    case 'cf':
+    case 'cafeloader':
+        console.warn('Selected console output mode: CafeLoader');
+        consoleOutput = 'cafeloader';
+        break;
+    case 'none': break;
+    default: abort(`Unsupported console output mode, must be one of: ${validConsoleOutputs.join(', ')}`);
+}
+if (consoleOutput !== 'none') console.warn('Console output enabled, this is experimental!');
+
 const timer = performance.now();
 
 //*--------------------
 //* Step 1: Parse project
 //*--------------------
 console.info('Parsing project...');
-const project = new Project(projectPath, metaPath, ghsPath, target);
+const project = new Project(projectPath, metaPath, ghsPath, target, consoleOutput);
 const baseRpxPath = path.join(project.rpxDir, `${project.targetBaseRpx}.rpx`);
 
 if (!fs.existsSync(project.rpxDir)) abort(`RPX folder ${project.rpxDir} does not exist!`);
@@ -99,7 +115,7 @@ const rpx = new RPL(rpxData, { parseRelocs: true });
 
 symbolMap = new SymbolMap(metaPath, project.targetAddrMap, rpx.sections);
 
-project.createGPJ();
+project.createGPJ(consoleOutput);
 
 //*--------------------
 //* Step 2: Compile
@@ -164,12 +180,16 @@ project.link(symbolMap, extraLinkerFlags);
 //*--------------------
 //* Step 4: Patch
 //*--------------------
-console.info('Applying patches...');
+console.info('Generating patches...');
 
 const oFileData = fs.readFileSync(`${path.join(metaPath, project.name)}.o`);
 oFile = new RPL(oFileData);
 const patches: Patch[] = project.patches();
 
+//? Attempt to branch off to console output
+handleConsoleOutput();
+//? Resume patching if no console output
+console.info('Applying patches...');
 patchRPX(oFile, rpx, patches, project.name, symbolMap.converter);
 
 //*--------------------
@@ -184,7 +204,6 @@ console.success(`Saved ${produceRPX ? 'RPX' : 'ELF'} to: ${$.cyanBright(saved.fi
 //*--------------------
 //* Step 5+: Generate TYPF file
 //*--------------------
-
 if (produceTYPF) {
     console.info('Generating Tachyon patch file...');
     const encoder = new TextEncoder();
@@ -213,4 +232,22 @@ if (produceTYPF) {
     console.success('Saved TYPF to:', $.cyanBright(patchFilePath));
 }
 
-console.success($.bold('Finished.'), 'Build took', $.yellow((performance.now() - timer).toFixed(3) + 'ms'));
+//*--------------------
+//* Step 4.5: Console Output
+//*--------------------
+function handleConsoleOutput(): void {
+    switch (consoleOutput) {
+        case 'none': return; // Return to non-console procedure
+        case 'cafeloader':
+            console.info('Generating CafeLoader files...');
+            generateCafeloaderFiles(oFile, patches, symbolMap);
+            break;
+    }
+    skipToEnd(); // TODO: Allow for simultaneous console and non-console output, currently only one can be used due to clashing address conversions
+}
+
+skipToEnd();
+function skipToEnd() {
+    console.success($.bold('Finished.'), 'Build took', $.yellow((performance.now() - timer).toFixed(3) + 'ms'));
+    process.exit(0);
+}

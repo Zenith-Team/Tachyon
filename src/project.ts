@@ -30,7 +30,7 @@ interface ProjectTarget {
 }
 
 export class Project {
-    constructor(projectPath: string, metaPath: string, ghsPath: string, target: string) {
+    constructor(projectPath: string, metaPath: string, ghsPath: string, target: string, consoleOutput: 'cafeloader' | 'none') {
         this.path = projectPath;
         this.meta = metaPath;
         this.ghsPath = ghsPath;
@@ -82,6 +82,7 @@ export class Project {
                 }
                 this.targetAddrMap = tgt.AddrMap;
                 this.targetBaseRpx = tgt.BaseRpx;
+                if (consoleOutput !== 'none') this.targetAddrMap += `-${consoleOutput}`;
             } else abort(`Target ${target} not found on project.yaml!`);
         } catch {
             abort('Invalid project.yaml!');
@@ -95,7 +96,7 @@ export class Project {
         ) abort('Could not locate Green Hills Software MULTI!');
     }
 
-    public createGPJ(): void {
+    public createGPJ(consoleOutput: 'cafeloader' | 'none'): void {
         for (const module of this.modules) {
             for (const file of module.cppFiles) {
                 this.cppFiles.push(file);
@@ -121,7 +122,7 @@ primaryTarget=ppc_cos_ndebug.tgt
 \t--no_rtti
 \t--no_implicit_include
 \t--implicit_typename
-\t--diag_suppress 1931,1974,1822,381
+\t--diag_suppress 1931,1974,1822,381,550
 \t--enable_noinline
 \t-Ospeed
 \t-no_ansi_alias
@@ -130,7 +131,7 @@ primaryTarget=ppc_cos_ndebug.tgt
 \t-MD
 \t-I${path.relative(this.meta, this.includeDir)}`
         );
-
+        if (consoleOutput !== 'none') gpj.push(`\t-DCONSOLE=${consoleOutput}`);
         for (const define of this.defines) gpj.push(`\t-D${define}`);
         for (const cpp of this.cppFiles)   gpj.push(path.join(path.relative(this.meta, this.sourceDir), cpp));
         fs.writeFileSync(path.join(this.meta, 'project.gpj'), gpj.join('\n'));

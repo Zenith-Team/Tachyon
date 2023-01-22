@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "tachyon",
-  "version": "2.4.2",
+  "version": "2.5.0",
   "license": "MIT",
   "main": "dist/lib.js",
   "private": true,

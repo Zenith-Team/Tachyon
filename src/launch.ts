@@ -113,12 +113,12 @@ export async function launch() {
     let finalGamePath: string;
     if (originalPrefRpxPath) {
         console.info('Copying custom RPX/ELF to preferred RPX file location...');
-        fs.cpSync(rpxPath, originalPrefRpxPath);
         finalGamePath = originalPrefRpxPath;
+        if (path.resolve(rpxPath) !== path.resolve(originalPrefRpxPath)) fs.cpSync(rpxPath, originalPrefRpxPath);
     } else {
         console.info('Copying custom RPX/ELF to game folder...');
         finalGamePath = path.join(gamePath, 'code', path.basename(rpxPath));
-        fs.cpSync(rpxPath, finalGamePath);
+        if (path.resolve(rpxPath) !== path.resolve(finalGamePath)) fs.cpSync(rpxPath, finalGamePath);
     }
 
     console.info('Launching Cemu...');

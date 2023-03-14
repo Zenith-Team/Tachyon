@@ -56,17 +56,25 @@ export async function launch() {
     if (!cemu) abort('No Cemu path provided! The CEMU_ROOT environment variable is not set, and no path was provided with the --cemu option.');
     if (!game) abort('No game path provided! The TACHYON_DEFAULT_GAME_ROOT environment variable is not set, and no path was provided with the --game option.');
     const rpxPath = path.resolve(cwd, rpxPathRaw);
-    const cemuPath = path.resolve(cwd, cemu);
     const gamePath = path.resolve(cwd, game);
-    if (!fs.existsSync(rpxPath)) abort('RPX/ELF file not found!');
-    if (!fs.existsSync(cemuPath)) abort('Cemu path not found!');
-    if (!fs.existsSync(gamePath)) abort('Game path not found!');
+    const cemuPath = path.resolve(cwd, cemu);
     const cemuExe = path.join(cemuPath, 'Cemu.exe');
+    if (!fs.existsSync(rpxPath)) abort('RPX/ELF file not found!');
+    if (!fs.existsSync(gamePath)) abort('Game path not found!');
+    if (!fs.existsSync(cemuPath)) abort('Cemu path not found!');
     if (!fs.existsSync(cemuExe)) abort(`Cemu path is invalid! No Cemu.exe found at the given folder! (Path searched: ${cemuExe})`);
-    if (path.basename(gamePath) === 'code') abort('The game path must be the root folder of the game, not the "code" folder! (Go one folder up)');
-    if (path.basename(gamePath).toLowerCase().endsWith('rpx') || path.basename(gamePath).toLowerCase().endsWith('elf')) {
+
+    const gameFolders = fs.readdirSync(gamePath);
+    const gamePathBasename = path.basename(gamePath);
+    if (gamePathBasename.toLowerCase().endsWith('rpx') || gamePathBasename.toLowerCase().endsWith('elf')) {
         abort('The game path must be the root folder of the game, not the RPX/ELF file! (Go one folder up)');
     }
+    ['code', 'meta', 'content'].forEach(folder => {
+        if (!gameFolders.includes(folder)) abort(
+            `Game path is invalid! No "${folder}" folder found in the given folder!` +
+            gamePathBasename === folder ? ` (Did you give the "${folder}" folder path instead of the root folder? Go one folder up)` : ''
+        );
+    });
     
     // If we don't check this edge case and ammend it, we may inadvertently overwrite the real vanilla RPX with the modified one
     fs.readdirSync(path.join(gamePath, 'code')).forEach(file => {

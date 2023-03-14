@@ -95,9 +95,13 @@ export async function launch() {
             console.success(`${$.bold('[+]')} Preferred RPX filename found: ${prefRpx}`);
             const prefRpxPath = path.join(gamePath, 'code', prefRpx);
             if (fs.existsSync(prefRpxPath)) {
-                console.success(`${$.bold('[+]')} Preferred RPX file found, temporarily disabling it to prevent conflicts...`);
-                fs.renameSync(prefRpxPath, `${prefRpxPath}.disabled`);
-                originalPrefRpxPath = prefRpxPath;
+                if (rpxPath !== prefRpxPath) {
+                    console.success(`${$.bold('[+]')} Preferred RPX file found, temporarily disabling it to prevent conflicts...`);
+                    fs.renameSync(prefRpxPath, `${prefRpxPath}.disabled`);
+                    originalPrefRpxPath = prefRpxPath;
+                } else {
+                    console.info('Preferred RPX file found, but it is the same file we are launching, no action required.');
+                }
             } else {
                 console.info(`Preferred RPX file not found, no action required.`);
             }
@@ -114,11 +118,16 @@ export async function launch() {
     if (originalPrefRpxPath) {
         console.info('Copying custom RPX/ELF to preferred RPX file location...');
         finalGamePath = originalPrefRpxPath;
-        if (path.resolve(rpxPath) !== path.resolve(originalPrefRpxPath)) fs.cpSync(rpxPath, originalPrefRpxPath);
     } else {
         console.info('Copying custom RPX/ELF to game folder...');
         finalGamePath = path.join(gamePath, 'code', path.basename(rpxPath));
-        if (path.resolve(rpxPath) !== path.resolve(finalGamePath)) fs.cpSync(rpxPath, finalGamePath);
+    }
+    let copiedRpx = false;
+    if (rpxPath !== finalGamePath) {
+        fs.cpSync(rpxPath, finalGamePath);
+        copiedRpx = true;
+    } else {
+        console.warn('Custom RPX/ELF is already in the game folder, copy skipped.');
     }
 
     console.info('Launching Cemu...');
@@ -241,10 +250,12 @@ export async function launch() {
             console.info('cleanup: Restoring original preferred RPX file over custom RPX...');
             fs.renameSync(`${originalPrefRpxPath}.disabled`, originalPrefRpxPath);
             console.success(`${$.bold('[+]')} cleanup: Original preferred RPX file restored.`);
-        } else {
+        } else if (copiedRpx) {
             console.info('cleanup: Deleting custom RPX/ELF file from game folder...');
             fs.rmSync(finalGamePath, { force: true });
             console.success(`${$.bold('[+]')} cleanup: Custom RPX/ELF file deleted.`);
+        } else {
+            console.success($.gray(`${$.bold('[+]')} cleanup: No cleanup required as RPX/ELF was launched directly on game folder.`));
         }
         if (crashed) crashlogMode = true;
         if (tail) setTimeout(() => {

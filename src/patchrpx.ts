@@ -97,6 +97,7 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
     baseRPX.crcSection.nameOffset = baseRPX.shstrSection.strings.add(`.rplcrcs`);
     baseRPX.fileinfoSection.nameOffset = baseRPX.shstrSection.strings.add(`.rplfileinfo`);
 
+    let checks = 0;
     for (const patch of patches) {
         let targetSection: Section;
         let targetRelocSection: RelocationSection;
@@ -137,42 +138,63 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
             continue;
         }
 
-        // Backtrack for overlapping relocation prior to the patch
-        const prerel = targetRelocSection.relocations.get(address - 2);
-        if (prerel && prerel.fieldSize === 4) abort(
-            `Patch of data "${data}" at address 0x${
-                hex(address)
-            } of section ${targetSection.name} is partially overwritten by a 4-byte relocation at 0x${hex(address - 2)}.\n` +
-            `To fix this problem, move the patch to 0x${
-                hex(address - 2)
-            } and prepend to the patch data the relocated value of the 2 bytes before the actual patched bytes.`
-        );
-
-        // Check for overlapping relocations mid-patch
-        for (let i = 0; i <= dataBytes.byteLength - 2; i += 2) {
-            const rel = targetRelocSection.relocations.get(address + i);
-            if (!rel) continue;
-            targetRelocSection.relocations.deleteAt(address + i);
-            //console['debug'](
-            //    `Deleted relocation at address 0x${hex(address + i)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
-            //);
+        // Backtrack for overlapping relocations starting prior to the patch
+        for (let i = 1; i <= 3; i++) {
+            checks++;
+            const relAddr = address - i;
+            //console.debug(`[PREREL] Checking for relocation at 0x${hex(relAddr)} for patch at 0x${hex(address)}+${dataBytes.byteLength}`);
+            const rel = targetRelocSection.relocations.get(relAddr);
+            if (rel && (i === 1 || rel.fieldSize === 4)) abort(
+                `Patch of data "${data}" at address 0x${
+                    hex(address)
+                } of section ${targetSection.name} is partially overwritten by a ${rel.fieldSize}-byte relocation at 0x${hex(relAddr)}.\n` +
+                `To fix this problem, move the patch to 0x${
+                    hex(relAddr)
+                } and prepend to the patch data the relocated value of the ${i} bytes before the actual patched bytes.`
+            );
         }
 
-        // Check for relocation bleeding beyond the patch
-        const postrel = targetRelocSection.relocations.get(address + dataBytes.byteLength - 2);
-        if (postrel && postrel.fieldSize === 4) abort(
-            `Patch of data "${data}" at address 0x${
-                hex(address)
-            } of section ${targetSection.name} deletes a 4-byte relocation at 0x${
-                hex(address + dataBytes.byteLength - 2)
-            } which partially relocated beyond the patch.\n` +
-            `To fix this problem, append to the patch data the relocated value of the 2 bytes after the actual patched bytes.`
-        );
+        // Check for relocations bleeding beyond the patch
+        const bleedableBytesN = dataBytes.byteLength >= 4 ? 3 : dataBytes.byteLength - 1;
+        for (let i = 1; i <= bleedableBytesN; i++) {
+            checks++;
+            const relAddr = address + dataBytes.byteLength - i;
+            //console.debug(`[POSTREL] Checking for relocation at 0x${hex(relAddr)} for patch at 0x${hex(address)}+${dataBytes.byteLength}`);
+            const rel = targetRelocSection.relocations.get(relAddr);
+            if (!rel) continue;
+            if (i === 1 || rel.fieldSize === 4) abort(
+                `Patch of data "${data}" at address 0x${
+                    hex(address)
+                } of section ${targetSection.name} deletes a ${rel.fieldSize}-byte relocation at 0x${hex(relAddr)} which partially relocates beyond the patch.\n` +
+                `To fix this problem, append to the patch data the relocated value of the ${rel.fieldSize - i} bytes after the actual bytes being patched.`
+            );
+            else {
+                targetRelocSection.relocations.deleteAt(relAddr);
+                //console.debug(
+                //    `Deleted relocation size ${rel.fieldSize} at address 0x${hex(relAddr)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
+                //);
+            }
+        }
+
+        // Check for overlapping relocations mid-patch
+        const bytesToCheckN = dataBytes.byteLength - bleedableBytesN;
+        for (let i = 0; i < bytesToCheckN; i++) {
+            checks++;
+            const relAddr = address + i;
+            //console.debug(`[REL] Checking for relocation at 0x${hex(relAddr)} for patch at 0x${hex(address)}+${dataBytes.byteLength}`);
+            const rel = targetRelocSection.relocations.get(relAddr);
+            if (!rel) continue;
+            targetRelocSection.relocations.deleteAt(relAddr);
+            //console.debug(
+            //    `Deleted relocation size ${rel.fieldSize} at address 0x${hex(relAddr)} of section ${targetSection.name} for patch at 0x${hex(address)}+${dataBytes.byteLength}`
+            //);
+        }
 
         // Write the patch data
         //console.debug(`Patching data "${data}" at address 0x${hex(address)} of section ${targetSection.name}`);
         targetSection.data!.set(dataBytes, address - <number>targetSection.addr);
     }
+    console.log(`Checked all possible relocation conflicts in ${checks} checks for ${patches.length} patches.`);
 
     baseRPX.shstrSection.addr = baseRPX.addressRanges.free.find(([start]) => start >= LoadBaseAddress)![0];
     baseRPX.fileinfoSection.adjustFileInfoSizes();

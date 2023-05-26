@@ -96,7 +96,7 @@ export class Project {
         ) abort('Could not locate Green Hills Software MULTI!');
     }
 
-    public createGPJ(consoleOutput: 'cafeloader' | 'none'): void {
+    public createGPJ(consoleOutput: 'cafeloader' | 'none', extraCompilerFlags: string[]): void {
         for (const module of this.modules) {
             for (const file of module.cppFiles) {
                 this.cppFiles.push(file);
@@ -129,6 +129,7 @@ primaryTarget=ppc_cos_ndebug.tgt
 \t--max_inlining
 \t-Onounroll
 \t-MD
+\t${extraCompilerFlags.join(' ')}
 \t-I${path.relative(this.meta, this.includeDir)}`
         );
         if (consoleOutput !== 'none') gpj.push(`\t-DCONSOLE=${consoleOutput}`);
@@ -137,7 +138,7 @@ primaryTarget=ppc_cos_ndebug.tgt
         fs.writeFileSync(path.join(this.meta, 'project.gpj'), gpj.join('\n'));
     }
 
-    public link(map: SymbolMap, extraLinkerFlags: string[] = []): void {
+    public link(map: SymbolMap, extraLinkerFlags: string[]): void {
         fs.writeFileSync(path.join(this.meta, 'linker', this.targetAddrMap) + '.ld', `MEMORY {
 \ttext : origin = 0x${hex(map.converter.text)}, length = 0x${hex(DataBaseAddress - map.converter.text)}
 \tdata : origin = 0x${hex(map.converter.data)}, length = 0x${hex(LoadBaseAddress - map.converter.data)}

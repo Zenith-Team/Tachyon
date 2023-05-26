@@ -77,6 +77,7 @@ ${c('compile')} ${y('<target>')}
     ${b('-m')}${C} ${b('--meta')} ${G('<string>')}     Name of the project metadata folder. ${d('(default: "project")')}
     ${b('-A')}${C} ${b('--aflag')} ${G('<string>')}    Additional flag(s) to pass directly to the assembler. Multiple use.
     ${b('-C')}${C} ${b('--cflag')} ${G('<string>')}    Additional flag(s) to pass directly to the compiler. Multiple use.
+    ${b('-B')}${C} ${b('--bflag')} ${G('<string>')}    Additional flag(s) to pass directly to the builder. Multiple use.
     ${b('-L')}${C} ${b('--lflag')} ${G('<string>')}    Additional flag(s) to pass directly to the linker. Multiple use.
     ${b('-r')}${C} ${b('--rpx')}               Output compressed RPX instead of uncompressed ELF.
     ${b('-t')}${C} ${b('--typf')}              Output a Tachyon patch file next to the ELF/RPX.

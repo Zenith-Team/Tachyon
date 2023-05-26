@@ -25,7 +25,7 @@ const {
         meta: metaFolderName,
         ghs: ghsPathRaw,
         out: outPathRaw,
-        aflag, cflag, lflag,
+        aflag, cflag, bflag, lflag,
         rpx: produceRPXFlag,
         typf: produceTYPF,
         console: consoleFlag,
@@ -42,6 +42,7 @@ const {
         out:        { type: 'string',  short: 'o' },
         aflag:      { type: 'string',  short: 'A', multiple: true },
         cflag:      { type: 'string',  short: 'C', multiple: true },
+        bflag:      { type: 'string',  short: 'B', multiple: true },
         lflag:      { type: 'string',  short: 'L', multiple: true },
         rpx:        { type: 'boolean', default: false, short: 'r' },
         typf:       { type: 'boolean', default: false, short: 't' },
@@ -54,6 +55,7 @@ if (targets.length > 1) abort('Multiple targets are not yet supported.');
 const target = targets[0]!;
 const extraAssemblerFlags = aflag ?? [];
 const extraCompilerFlags = cflag ?? [];
+const extraBuilderFlags = bflag ?? [];
 const extraLinkerFlags = lflag ?? [];
 
 const threads = Number(threadsRaw);
@@ -115,7 +117,7 @@ const rpx = new RPL(rpxData, { parseRelocs: true });
 
 symbolMap = new SymbolMap(metaPath, project.targetAddrMap, rpx.sections);
 
-project.createGPJ(consoleOutput);
+project.createGPJ(consoleOutput, extraCompilerFlags);
 
 //*--------------------
 //* Step 2: Compile
@@ -132,7 +134,7 @@ else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
 const gbuildCommand = path.join(project.ghsPath, 'gbuild.exe');
 const gbuildArgs = [
-    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`, ...extraCompilerFlags
+    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`, ...extraBuilderFlags
 ];
 const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectPath, stdio: 'inherit' });
 if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort('gbuild command failed!');

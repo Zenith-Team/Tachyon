@@ -48,12 +48,9 @@ export function generateCafeloaderFiles(oFile: RPL, patches: Patch[], map: Symbo
 
         for (const { address, data } of patches) {
             const patchBytes = Buffer.from(data, 'hex');
-            // TODO: These checks are duplicated in patchrpx.ts, they should be unified in the Hook class
+            // TODO: This check is duplicated in patchrpx.ts, it should be unified in the Hook class
             if (patchBytes.byteLength !== data.length / 2) {
                 abort(`Data of patch at address 0x${hex(address)} is malformed: "${data}"`);
-            }
-            if (patchBytes.byteLength % 2) {
-                abort(`Data of patch at address 0x${hex(address)} is not 2-byte aligned: "${data}"`);
             }
             const patchBuf = Buffer.allocUnsafe(6 + patchBytes.byteLength);
 

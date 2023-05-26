@@ -130,9 +130,6 @@ export function patchRPX(compiledRPX: RPL, baseRPX: RPL, patches: Patch[], brand
         if (dataBytes.byteLength !== data.length / 2) {
             abort(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is malformed: "${data}"`);
         }
-        if (dataBytes.byteLength % 2) {
-            abort(`Data of patch at address 0x${hex(address)} of section ${targetSection.name} is not 2-byte aligned: "${data}"`);
-        }
 
         // Backtrack for overlapping relocations starting prior to the patch
         for (let i = 1; i <= 3; i++) {

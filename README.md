@@ -8,8 +8,8 @@
   </a>
   <a href="https://github.com/Zenith-Team/Tachyon/releases/latest">
     <img src="https://img.shields.io/github/package-json/v/Zenith-Team/Tachyon?label=version&style=flat&color=%2346ad14" alt="Version"/>
-    <img src="https://img.shields.io/github/license/Zenith-Team/Tachyon?style=flat&color=%23f57242" alt="Download"/>
   </a>
+  <img src="https://img.shields.io/github/license/Zenith-Team/Tachyon?style=flat&color=%23f57242" alt="License"/>
   <a href="https://go.nsmbu.net/discord">
     <img src="https://img.shields.io/discord/800510605785563186?logo=discord&color=%235662f6&style=flat&label=zenith" alt="Discord Link"/>
   </a>

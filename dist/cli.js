@@ -91,28 +91,18 @@ ${c('launch')} ${y('<rpx_path>')}
     ${b('-B')}${C} ${b('--block')} ${G('<string>')}    Types of logs blocked from printing. Multiple use.
     ${b('-f')}${C} ${b('--fullscreen')}        Launch in fullscreen mode.
 `.trimEnd());
-        if (!process.env.TACHYON_LIB_MODE)
-            process.exit();
+        process.exit();
     }
     if (args.includes('-v') || args.includes('--version')) {
         try {
             const { version } = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
-            if (!process.env.TACHYON_LIB_MODE)
-                console.info(`Tachyon v${version}`);
-            else
-                process.env.TACHYON_LIB_RETURN = version;
+            console.info(`Tachyon v${version}`);
         }
-        catch (err) {
-            if (process.env.TACHYON_LIB_MODE)
-                throw err;
-            else
-                console.error('Failed to get version.');
+        catch {
+            console.error('Failed to get version.');
         }
-        if (!process.env.TACHYON_LIB_MODE)
-            process.exit();
-    }
-    if (!process.env.TACHYON_LIB_MODE) {
-        console.error('Unknown command or options, run "tachyon --help" for information.');
         process.exit();
     }
+    console.error('Unknown command or options, run "tachyon --help" for information.');
+    process.exit();
 }

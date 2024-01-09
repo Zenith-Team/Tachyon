@@ -196,10 +196,10 @@ if (produceTYPF) {
     values.writeUint32BE(crc.crc32(rpxData), 20); // 0x18
     values.writeUint32BE(crc.crc32(saved.filedata), 24); // 0x1C
     const patchFileData = zlib.deflateSync(Buffer.concat([
-        magic,
-        values,
-        patchesData,
-        projNameAndTargetData,
+        magic, // 0x0: u32
+        values, // 0x4: u32, 0x8: u32, 0xC: u32, 0x10: u32, 0x14: u32, 0x18: u32, 0x1C: u32
+        patchesData, // 0x20: char[(value at 0x10)]
+        projNameAndTargetData, // 0x20 + (value at 0x10): char[(value at 0x14)]
         oFileData // 0x20 + (value at 0x10) + (value at 0x14): u8[(until EOF)]
     ]), { memLevel: 9, level: 9 });
     const patchFilePath = path.join(path.dirname(saved.filepath), `${project.name}.${target}.typf`);

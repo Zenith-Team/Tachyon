@@ -3,6 +3,17 @@ import './sideload.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+declare global {
+    namespace NodeJS {
+        interface ProcessEnv {
+            GHS_ROOT: string | undefined;
+            CEMU_ROOT: string | undefined;
+            readonly TACHYON_DEBUG: string | undefined;
+            readonly TACHYON_DEFAULT_GAME_ROOT: string | undefined;
+        }
+    }
+}
 const args = process.argv.slice(2);
 
 const [nodeMajor, nodeMinor] = process.versions.node.split('.');
@@ -93,7 +104,7 @@ ${c('launch')} ${y('<rpx_path>')}
     ${b('-B')}${C} ${b('--block')} ${G('<string>')}    Types of logs blocked from printing. Multiple use.
     ${b('-f')}${C} ${b('--fullscreen')}        Launch in fullscreen mode.
 `.trimEnd());
-        if (!process.env.TACHYON_LIB_MODE) process.exit();
+        process.exit();
     }
 
     if (args.includes('-v') || args.includes('--version')) {
@@ -101,17 +112,13 @@ ${c('launch')} ${y('<rpx_path>')}
             const { version } = JSON.parse(
                 fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
             ) as { version: string; };
-            if (!process.env.TACHYON_LIB_MODE) console.info(`Tachyon v${version}`);
-            else process.env.TACHYON_LIB_RETURN = version;
-        } catch (err) {
-            if (process.env.TACHYON_LIB_MODE) throw err;
-            else console.error('Failed to get version.');
+            console.info(`Tachyon v${version}`);
+        } catch {
+            console.error('Failed to get version.');
         }
-        if (!process.env.TACHYON_LIB_MODE) process.exit();
-    }
-
-    if (!process.env.TACHYON_LIB_MODE) {
-        console.error('Unknown command or options, run "tachyon --help" for information.');
         process.exit();
     }
+
+    console.error('Unknown command or options, run "tachyon --help" for information.');
+    process.exit();
 }

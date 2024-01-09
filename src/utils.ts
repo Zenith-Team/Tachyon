@@ -16,32 +16,18 @@ declare global {
     }
 }
 
-/**
- * Print out an error and terminate execution.
- */
+/** Print out an error and terminate execution. */
 export function abort(msg: string, code: number = 0): never {
-    if (process.env.TACHYON_LIB_MODE) {
-        const error = new Error(msg);
-        error.name = 'TachyonAbortedError';
-        Error.captureStackTrace(error, abort);
-        Reflect.set(error, 'code', code);
-        throw error;
-    } else {
-        console.error(msg);
-        process.exit(code);
-    }
+    console.error(msg);
+    process.exit(code);
 }
 
-/**
- * Format a number into a proper hexadecimal string.
- */
+/** Format a number into a proper hexadecimal string. */
 export function hex(num: number, pad: number = 8, prefix = ''): string {
     return prefix + num.toString(16).toUpperCase().padStart(pad, '0');
 }
 
-/**
- * Scan an Assembly file for `.include` directives and return a list of dependencies
- */
+/** Scan an Assembly file for `.include` directives and return a list of dependencies */
 export function scanAssemlyFileDependencies(asmfilePath: string, includeDir: string): string[] | undefined {
     const fd = fs.openSync(asmfilePath, 'r');
     let buf = Buffer.alloc(10);

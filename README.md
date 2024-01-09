@@ -1,5 +1,19 @@
-# Tachyon
-An experimental Wii U custom code project compiler.
+<a href="https://github.com/Zenith-Team/Tachyon" align="center">
+    <img src="https://cdn.discordapp.com/attachments/804348227482419230/1144101931426512936/header.png">
+</a>
+
+<div align="center">
+  <a href="#">
+    <img src="https://img.shields.io/badge/for-Wii%20U-blue?color=%2302a4c7&style=flat" alt="For Wii U"/>
+  </a>
+  <a href="https://github.com/Zenith-Team/Tachyon/releases/latest">
+    <img src="https://img.shields.io/github/package-json/v/Zenith-Team/Tachyon?label=version&style=flat&color=%2346ad14" alt="Version"/>
+  </a>
+  <img src="https://img.shields.io/github/license/Zenith-Team/Tachyon?style=flat&color=%23f57242" alt="License"/>
+  <a href="https://go.nsmbu.net/discord">
+    <img src="https://img.shields.io/discord/800510605785563186?logo=discord&color=%235662f6&style=flat&label=zenith" alt="Discord Link"/>
+  </a>
+</div>
 
 ## Requirements
 * Green Hills Software MULTI for PowerPC (required only for the `compile` command)
@@ -19,8 +33,5 @@ tachyon --help
 ```
 
 ## Documentation
-Detailed documentation on using the project system:
-[**Tachyon Docs**](DOCS.md)
-
-Technical information on the file formats used by Tachyon:
-[**Tachyon Spec**](SPEC.md)
+- Detailed documentation on using the project system can be found at the [**docs**](DOCS.md).
+- Technical information on the file formats used by Tachyon can be found at the [**specs**](SPEC.md).

@@ -1,5 +1,5 @@
 <a href="https://github.com/Zenith-Team/Tachyon" align="center">
-    <img src="https://cdn.discordapp.com/attachments/804348227482419230/1144101931426512936/header.png">
+    <img src="https://github.com/user-attachments/assets/d9c26870-8315-409d-ac33-c176ce5563f3">
 </a>
 
 <div align="center">

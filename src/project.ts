@@ -17,7 +17,7 @@ interface ProjectYAML {
     Variables?: Record<string, string> | null, // Default: {}
     RpxDir?: string | null, // Default: './rpxs'
     ModulesBaseDir?: string | null, // Default: null (from project.yaml)
-    SourcesBaseDir?: string | null, // Default: null (from module file)
+    SourceDir?: string | null, // Default: null (from module file)
     IncludeDirs?: string[] | null, // Default: ['./include']
     BuildOptions?: string[] | null, // Default: []
     ExcludeDefaultBuildOptions?: string[] | boolean | null, // Default: []
@@ -62,10 +62,10 @@ export class Project {
             if (typeof yaml.ModulesBaseDir !== 'string') abort(`project.yaml: Invalid ModulesBaseDir field type "${typeof yaml.ModulesBaseDir}". Expected string or null.`);
             this.modulesBaseDir = path.resolve(projectDir, this.processStringVars(yaml.ModulesBaseDir || this.path));
 
-            yaml.SourcesBaseDir ??= null;
-            if (yaml.SourcesBaseDir === '') yaml.SourcesBaseDir = null;
-            if (typeof yaml.SourcesBaseDir !== 'string' && yaml.SourcesBaseDir !== null) abort(`project.yaml: Invalid SourcesBaseDir field type "${typeof yaml.SourcesBaseDir}". Expected string or null.`);
-            this.sourcesBaseDir = yaml.SourcesBaseDir && path.resolve(projectDir, this.processStringVars(yaml.SourcesBaseDir));
+            yaml.SourceDir ??= null;
+            if (yaml.SourceDir === '') yaml.SourceDir = null;
+            if (typeof yaml.SourceDir !== 'string') abort(`project.yaml: Invalid SourcesBaseDir field type "${typeof yaml.SourceDir}". Expected string or null.`);
+            this.sourceDir = yaml.SourceDir && path.resolve(projectDir, this.processStringVars(yaml.SourceDir));
             
             yaml.IncludeDirs ??= ['include'];
             if (!Array.isArray(yaml.IncludeDirs)) abort(`project.yaml: Invalid IncludeDirs field type "${typeof yaml.IncludeDirs}". Expected array or null.`);
@@ -273,7 +273,7 @@ SECTIONS {
     vars: Record<string, string> = {};
     rpxDir: string;
     modulesBaseDir: string;
-    sourcesBaseDir: string | null;
+    sourceDir: string;
     includeDirs: string[];
     buildOptions: string[] = [
         '-c99',

@@ -6,3 +6,5 @@ src/_*
 *.rpx
 *.typf
 *.o
+
+dev_assets

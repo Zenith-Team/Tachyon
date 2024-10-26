@@ -85,7 +85,6 @@ ${c('compile')} ${y('<target>')}
     ${b('-T')}${C} ${b('--threads')} ${G('<number>')}  Number of parallel threads to use for compilation. ${d('(default: 2)')}
     ${b('-g')}${C} ${b('--ghs')} ${G('<path>')}        Path to Green Hills Software MULTI installation folder. ${d('(default: "C:/ghs/multi5327")')}
     ${b('-o')}${C} ${b('--out')} ${G('<path>')}        Path to save the output file to. ${d('(default: next to base rpx)')}
-    ${b('-m')}${C} ${b('--meta')} ${G('<string>')}     Name of the project metadata folder. ${d('(default: "project")')}
     ${b('-A')}${C} ${b('--aflag')} ${G('<string>')}    Additional flag(s) to pass directly to the assembler. Multiple use.
     ${b('-C')}${C} ${b('--cflag')} ${G('<string>')}    Additional flag(s) to pass directly to the compiler. Multiple use.
     ${b('-B')}${C} ${b('--bflag')} ${G('<string>')}    Additional flag(s) to pass directly to the builder. Multiple use.

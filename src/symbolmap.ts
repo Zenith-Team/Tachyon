@@ -54,8 +54,8 @@ export class ConvMap {
 }
 
 export class SymbolMap {
-    constructor(metaPath: string, targetAddrMap: string, rpxsections: readonly Section[]) {
-        const lines: string[] = fs.readFileSync(path.join(metaPath, 'syms', 'main.map'), 'utf8').split('\n');
+    constructor(projectDir: string, targetAddrMap: string, rpxsections: readonly Section[]) {
+        const lines: string[] = fs.readFileSync(path.join(projectDir, 'maps', 'main.map'), 'utf8').split('\n');
         let symbols: CSymbol[] = [];
 
         // Parse map
@@ -66,7 +66,7 @@ export class SymbolMap {
 
             if (line === '' || line[0] === '#') continue;
             if (line.includes('#')) line = line.split('#')[0] ?? '';
-            if (!line.endsWith(';')) abort(`Error parsing syms/main.map at line ${currentLine}: Missing semicolon`);
+            if (!line.endsWith(';')) abort(`Error parsing maps/main.map at line ${currentLine}: Missing semicolon`);
 
             const parts: string[] = line.replaceAll(';', '').split('=');
             const sym: CSymbol = { name: parts[0]!, address: NaN };
@@ -91,7 +91,7 @@ export class SymbolMap {
 
         // Convert
         try {
-            const offsetsFile = fs.readFileSync(path.join(metaPath, 'conv', targetAddrMap) + '.offs', 'utf8');
+            const offsetsFile = fs.readFileSync(path.join(projectDir, 'conv', targetAddrMap) + '.offs', 'utf8');
             const regex = /^([\dA-F]{1,8}) *- *([\dA-F]{1,8}) *: *([+-]) *(0x[\dA-F]{1,8}|\d{1,10})/;
             let addrs: ConvAddrs = { TextAddr: null, DataAddr: null, SymsAddr: null };
             let offsets: ConvOffset[] = [];
@@ -117,7 +117,7 @@ export class SymbolMap {
             }
             this.converter = new ConvMap(offsets, addrs, rpxsections);
         } catch {
-            abort(`Invalid or missing conversion map: ${path.join(metaPath, 'conv', targetAddrMap)}.offs`);
+            abort(`Invalid or missing conversion map: ${path.join(projectDir, 'conv', targetAddrMap)}.offs`);
         }
 
         this.convertedLines.push('SECTIONS {');
@@ -129,7 +129,7 @@ export class SymbolMap {
         }
 
         this.convertedLines.push('}');
-        fs.writeFileSync(path.join(metaPath, 'syms', targetAddrMap) + '.x', this.convertedLines.join('\n'));
+        fs.writeFileSync(path.join(projectDir, 'maps', targetAddrMap) + '.x', this.convertedLines.join('\n'));
     }
 
     public getSymbol(name: string): CSymbol {

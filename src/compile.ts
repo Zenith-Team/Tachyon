@@ -20,9 +20,8 @@ const cwd = process.cwd();
 
 const {
     positionals: targets, values: {
-        project: projectPathRaw,
+        project: projectDirRaw,
         threads: threadsRaw,
-        meta: metaFolderName,
         ghs: ghsPathRaw,
         out: outPathRaw,
         aflag, cflag, bflag, lflag,
@@ -37,7 +36,6 @@ const {
     options: {
         project:    { type: 'string',  short: 'p', default: cwd },
         threads:    { type: 'string',  short: 'T', default: '2' },
-        meta:       { type: 'string',  short: 'm', default: 'project' },
         ghs:        { type: 'string',  short: 'g', default: process.env.GHS_ROOT ?? 'C:/ghs/multi5327' },
         out:        { type: 'string',  short: 'o' },
         aflag:      { type: 'string',  short: 'A', multiple: true },
@@ -53,10 +51,10 @@ const {
 if (targets.length === 0) abort('No targets specified.');
 if (targets.length > 1) abort('Multiple targets are not yet supported.');
 const target = targets[0]!;
-const extraAssemblerFlags = aflag ?? [];
-const extraCompilerFlags = cflag ?? [];
-const extraBuilderFlags = bflag ?? [];
-const extraLinkerFlags = lflag ?? [];
+const extraAssemblerFlagsCLI = aflag ?? [];
+const extraCompilerFlagsCLI = cflag ?? [];
+const extraBuilderFlagsCLI = bflag ?? [];
+const extraLinkerFlagsCLI = lflag ?? [];
 
 const threads = Number(threadsRaw);
 if (!Number.isSafeInteger(threads) || threads <= 0) abort('Invalid number of threads.');
@@ -66,17 +64,15 @@ const outPath = outPathRaw ? (
     ['.rpx', '.rpl', '.elf'].includes(path.extname(outPathRaw).toLowerCase()) ?
         abort('Output path may not contain the file extension, only the name.') : path.resolve(cwd, outPathRaw)
 ) : null;
-const projectPath = path.resolve(cwd, projectPathRaw!);
+const projectDir = path.resolve(cwd, projectDirRaw!);
 const ghsPath = path.resolve(cwd, ghsPathRaw!);
-const metaPath = path.join(projectPath, metaFolderName!);
 
-if (!fs.existsSync(projectPath))                             abort('Project path folder does not exist!');
-if (!fs.existsSync(metaPath))                                abort(`Project meta folder not found: ${metaPath}`);
-if (!fs.existsSync(path.join(metaPath, 'project.yaml')))     abort('Project meta folder does not have a project.yaml!');
-if (!fs.existsSync(path.join(metaPath, 'syms')))             abort('Project meta folder does not have a "syms" folder!');
-if (!fs.existsSync(path.join(metaPath, 'syms', 'main.map'))) abort('Project symbols folder does not have a main.map file!');
-if (!fs.existsSync(path.join(metaPath, 'conv')))             abort('Project meta folder does not have a "conv" folder!');
-if (!fs.existsSync(path.join(metaPath, 'linker')))           fs.mkdirSync(path.join(metaPath, 'linker'));
+if (!fs.existsSync(projectDir))                                abort('Project folder does not exist!');
+if (!fs.existsSync(path.join(projectDir, 'project.yaml')))     abort('Project folder does not have a project.yaml!');
+if (!fs.existsSync(path.join(projectDir, 'conv')))             abort('Project folder does not have a "conv" folder!');
+if (!fs.existsSync(path.join(projectDir, 'maps')))             abort('Project folder does not have a "maps" folder!');
+if (!fs.existsSync(path.join(projectDir, 'maps', 'main.map'))) abort('Project maps folder does not have a main.map file!');
+if (!fs.existsSync(path.join(projectDir, 'linker')))           fs.mkdirSync(path.join(projectDir, 'linker'));
 
 let produceRPX = produceRPXFlag;
 if (produceTYPF && !produceRPX) {
@@ -103,28 +99,28 @@ const timer = performance.now();
 //* Step 1: Parse project
 //*--------------------
 console.info('Parsing project...');
-const project = new Project(projectPath, metaPath, ghsPath, target, consoleOutput);
+const project = new Project(projectDir, ghsPath, target, consoleOutput);
 const baseRpxPath = path.join(project.rpxDir, `${project.targetBaseRpx}.rpx`);
 
 if (!fs.existsSync(project.rpxDir)) abort(`RPX folder ${project.rpxDir} does not exist!`);
 if (!fs.existsSync(baseRpxPath)) abort(`Base RPX ${project.targetBaseRpx}.rpx for target ${target} does not exist!`);
-if (!fs.existsSync(project.includeDir)) abort(`Include folder ${project.includeDir} does not exist!`);
-if (!fs.existsSync(project.sourceDir)) abort(`Source folder ${project.sourceDir} does not exist!`);
-if (!fs.existsSync(project.modulesDir)) abort(`Modules folder ${project.modulesDir} does not exist!`);
+if (!project.includeDirs.some(dir => !fs.existsSync(dir))) abort('One or more include folders do not exist!');
+if (project.sourcesBaseDir && !fs.existsSync(project.sourcesBaseDir)) abort(`Source folders base path "${project.sourcesBaseDir}" does not exist!`);
+if (!fs.existsSync(project.modulesBaseDir)) abort(`Modules folders base path "${project.modulesBaseDir}" does not exist!`);
 
 const rpxData = fs.readFileSync(baseRpxPath);
 const rpx = new RPL(rpxData, { parseRelocs: true });
 
-symbolMap = new SymbolMap(metaPath, project.targetAddrMap, rpx.sections);
+symbolMap = new SymbolMap(projectDir, project.targetAddrMap, rpx.sections);
 
-project.createGPJ(consoleOutput, extraCompilerFlags);
+project.createGPJ(consoleOutput, extraCompilerFlagsCLI);
 
 //*--------------------
 //* Step 2: Compile
 //*--------------------
 console.info('Compiling...');
 
-const objsPath = path.join(metaPath, 'objs');
+const objsPath = path.join(projectDir, 'objs');
 if (noCache) {
     fs.rmSync(objsPath, { recursive: true, force: true });
     fs.mkdirSync(objsPath);
@@ -134,21 +130,21 @@ else if (!fs.existsSync(objsPath)) fs.mkdirSync(objsPath);
 
 const gbuildCommand = path.join(project.ghsPath, 'gbuild.exe');
 const gbuildArgs = [
-    '-top', path.join(metaPath, 'project.gpj'), `-parallel=${threads}`, ...extraBuilderFlags
+    '-top', path.join(projectDir, 'project.gpj'), `-parallel=${threads}`, ...extraBuilderFlagsCLI
 ];
-const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectPath, stdio: 'inherit' });
+const gbuild = spawnSync(gbuildCommand, gbuildArgs, { cwd: projectDir, stdio: 'inherit' });
 if (gbuild.error || gbuild.signal || gbuild.stderr || gbuild.status !== 0) abort('gbuild command failed!');
 
 const asppcCommand = path.join(project.ghsPath, 'asppc.exe');
-const asppcIncludeDir = project.includeDir;
+const asppcIncludeDirs = project.includeDirs;
 const asmCachePath = path.join(objsPath, '.asm.cache');
 const asmCache = fs.existsSync(asmCachePath) ? <Record<string, number>>JSON.parse(fs.readFileSync(asmCachePath, 'utf8')) : {};
 const depCache: Record<string, number> = {};
 
 for (const asmfile of project.asmFiles) {
-    const asmfilePath = path.join(project.sourceDir, asmfile);
+    const asmfilePath = /*path.join(project.sourcesBaseDir,*/ asmfile;//);
     const asmfileMtime = fs.statSync(asmfilePath).mtimeMs;
-    const deps = scanAssemlyFileDependencies(asmfilePath, asppcIncludeDir);
+    const deps = scanAssemlyFileDependencies(asmfilePath, asppcIncludeDirs);
     let modifiedDep: string = '';
 
     if (deps) for (const dep of deps) depCache[dep] = fs.statSync(dep).mtimeMs;
@@ -162,13 +158,13 @@ for (const asmfile of project.asmFiles) {
 
     console.log(
         'Assembling', asmfile,
-        modifiedDep ? `because ${path.relative(project.sourceDir, modifiedDep)} has changed` : ''
+        modifiedDep ? `because ${path.relative(project.path, modifiedDep)} has changed` : ''
     );
     const asppcArgs = [
-        `-I${asppcIncludeDir}/`, '-o', `${path.join(objsPath, path.basename(asmfile))}.o`,
-        '-cpu=espresso', '-regs', ...extraAssemblerFlags, path.relative(projectPath, asmfilePath)
+        ...asppcIncludeDirs.map(dir => `-I${dir}/`), '-o', `${path.join(objsPath, path.basename(asmfile))}.o`,
+        '-cpu=espresso', '-regs', ...extraAssemblerFlagsCLI, path.relative(projectDir, asmfilePath)
     ];
-    const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectPath, stdio: 'inherit' });
+    const asppc = spawnSync(asppcCommand, asppcArgs, { cwd: projectDir, stdio: 'inherit' });
     if (asppc.error || asppc.signal || asppc.stderr || asppc.status !== 0) abort('asppc command failed!');
 }
 fs.writeFileSync(asmCachePath, JSON.stringify(Object.assign(asmCache, depCache)));
@@ -177,14 +173,14 @@ fs.writeFileSync(asmCachePath, JSON.stringify(Object.assign(asmCache, depCache))
 //* Step 3: Link
 //*--------------------
 console.info('Linking...');
-project.link(symbolMap, extraLinkerFlags);
+project.link(symbolMap, extraLinkerFlagsCLI);
 
 //*--------------------
 //* Step 4: Patch
 //*--------------------
 console.info('Generating patches...');
 
-const oFileData = fs.readFileSync(`${path.join(metaPath, project.name)}.o`);
+const oFileData = fs.readFileSync(`${path.join(projectDir, project.name)}.o`);
 oFile = new RPL(oFileData);
 const patches: Patch[] = project.patches();
 

@@ -28,10 +28,10 @@ export function hex(num: number, pad: number = 8, prefix = ''): string {
 }
 
 /** Scan an Assembly file for `.include` directives and return a list of dependencies */
-export function scanAssemlyFileDependencies(asmfilePath: string, includeDir: string): string[] | undefined {
+export function scanAssemlyFileDependencies(asmfilePath: string, includeDirs: string[]): string[] | undefined {
     const fd = fs.openSync(asmfilePath, 'r');
     let buf = Buffer.alloc(10);
-    fs.readSync(fd, buf, 0, 10, 0);
+    fs.readSync(fd, buf, 0, 16, 0);
     if (!buf.toString('utf8').trimStart().startsWith('.include')) return;
 
     const directives = fs.readFileSync(fd, 'utf8').match(/^\.include +?"(.+?)"/gm);
@@ -40,16 +40,16 @@ export function scanAssemlyFileDependencies(asmfilePath: string, includeDir: str
     const includes = [];
     for (let i = 0; i < directives.length; i++) {
         const include = directives[i]!.slice(9).trimStart().slice(1, -1);
-        const absolute = path.resolve(includeDir, include);
+        const absolute = includeDirs.find(idir => fs.existsSync(path.resolve(idir, include)));
         let resolved: string;
-        if (fs.existsSync(absolute)) resolved = absolute;
+        if (absolute) resolved = absolute;
         else {
             const relative = path.resolve(path.dirname(asmfilePath), include);
             if (fs.existsSync(relative)) resolved = relative;
             else abort(`Could not resolve included ASM file "${include}" from "${asmfilePath}"`);
         }
         includes.push(resolved);
-        const subdeps = scanAssemlyFileDependencies(resolved, includeDir);
+        const subdeps = scanAssemlyFileDependencies(resolved, includeDirs);
         if (subdeps) includes.push(...subdeps);
     }
     return includes;

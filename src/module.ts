@@ -3,12 +3,12 @@ import path from 'path';
 import yamlLib, { YAMLParseError } from 'yaml';
 import { abort } from './utils.js';
 import {
-    BranchHook, FuncptrHook, Hook, HookYAML, MultiNopHook, NopHook, PatchHook, ReturnHook, ReturnValueHook
+    BranchHook, FuncptrHook, Hook, HookYAML, NopHook, PatchHook, ReturnHook
 } from './hooks.js';
 
 interface ModuleYAML {
-    Files: string[];
-    Hooks: HookYAML[];
+    Files: Partial<Record<'C' | 'C++' | 'Assembly' | 'Text', string[]>> | null;
+    Hooks: HookYAML[] | null;
 }
 
 export class Module {
@@ -17,26 +17,31 @@ export class Module {
         try {
             const yaml = yamlLib.parse(fs.readFileSync(yamlPath, 'utf8')) as ModuleYAML;
 
-            if (!(yaml.Files instanceof Array)) abort(`Module ${moduleName} is missing a "Files" property, or it is not a list.`);
-            for (const file of yaml.Files) {
-                if      (file.endsWith('.cpp')) this.cppFiles.push(file);
-                else if (file.endsWith('.S'))   this.asmFiles.push(file);
-                else console.warn('Ignoring file with unknown extension:', file, '(in module ' + moduleName + ')');
-            }
+            yaml.Files ??= {};
+            yaml.Files.C ??= [];
+            yaml.Files['C++'] ??= [];
+            yaml.Files.Assembly ??= [];
+            yaml.Files.Text ??= [];
+            if (Object.keys(yaml.Files).length !== 4) abort(`Module ${moduleName} has an invalid "Files" property.`);
+            if (typeof yaml.Files !== 'object') abort(`Module ${moduleName} has an invalid "Files" property.`);
 
-            if (!(yaml.Hooks instanceof Array)) abort(`Module ${moduleName} is missing a "Hooks" property, or it is not a list.`);
+            for (const file of yaml.Files.C) this.cppFiles.push(file);
+            for (const file of yaml.Files['C++']) this.cppFiles.push(file);
+            for (const file of yaml.Files.Assembly) this.asmFiles.push(file);
+            //for (const file of yaml.Files.Text) this.txtFiles.push(file);
+
+            yaml.Hooks ??= [];
+            if (!(yaml.Hooks instanceof Array)) abort(`Module ${moduleName} has an invalid "Hooks" property.`);
             for (const hook of yaml.Hooks) {
-                if (!Number.isSafeInteger(Number(hook.addr))) {
+                if (!Number.isSafeInteger(hook.addr) || hook.addr < 0) {
                     abort(`Invalid address "${hook.addr}" for hook #${yaml.Hooks.indexOf(hook) + 1} of type ${hook.type} in module ${moduleName}`);
                 }
                 switch (hook.type) {
-                    case 'patch':       this.hooks.push(new PatchHook(hook)); break;
                     case 'nop':         this.hooks.push(new NopHook(hook)); break;
-                    case 'multinop':    this.hooks.push(new MultiNopHook(hook)); break;
-                    case 'returnvalue': this.hooks.push(new ReturnValueHook(hook)); break;
                     case 'return':      this.hooks.push(new ReturnHook(hook)); break;
                     case 'branch':      this.hooks.push(new BranchHook(hook)); break;
                     case 'funcptr':     this.hooks.push(new FuncptrHook(hook)); break;
+                    case 'patch':       this.hooks.push(new PatchHook(hook)); break;
                     default: abort(`Unknown hook type: ${hook.type} (in module ${moduleName})`);
                 }
             }

@@ -1,6 +1,5 @@
 node_modules
-dist_dev
-dist/_*
+dist
 src/_*
 *.tgz
 *.elf

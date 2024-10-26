@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "tachyon",
-  "version": "3.0.99-unused",
+  "version": "4.0.0",
   "license": "MIT",
   "main": "dist/cli.js",
   "private": true,
@@ -18,10 +18,9 @@
   "scripts": {
     "start": "node dist/cli.js",
     "build": "npm run rebuild && npm rm -g tachyon && npm link",
-    "rebuild": "rm -rf dist_dev && npx tsc",
+    "rebuild": "rm -rf dist && npx tsc",
     "lint": "npx eslint src/**/*.ts",
-    "lint-fix": "npm run lint -- --fix",
-    "ship": "rm -rf dist && cp -r dist_dev dist"
+    "lint-fix": "npm run lint -- --fix"
   },
   "bin": {
     "tachyon": "dist/cli.js"

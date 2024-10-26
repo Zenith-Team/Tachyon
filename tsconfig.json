@@ -80,7 +80,7 @@
         // "alwaysStrict": true,                             /* Ensure 'use strict' is always emitted. */
 
         /* Type Checking */
-        "noUnusedLocals": true,                              /* Enable error reporting when a local variables aren't read. */
+        "noUnusedLocals": false,                             /* Enable error reporting when a local variables aren't read. */
         "noUnusedParameters": false,                         /* Raise an error when a function parameter isn't read */
         "exactOptionalPropertyTypes": false,                 /* Interpret optional property types as written, rather than adding 'undefined'. */
         "noImplicitReturns": true,                           /* Enable error reporting for codepaths that do not explicitly return in a function. */
@@ -88,8 +88,8 @@
         "noUncheckedIndexedAccess": true,                    /* Include 'undefined' in index signature results */
         "noImplicitOverride": true,                          /* Ensure overriding members in derived classes are marked with an override modifier. */
         "noPropertyAccessFromIndexSignature": false,         /* Enforces using indexed accessors for keys declared using an indexed type */
-        //"allowUnusedLabels": true,                         /* Disable error reporting for unused labels. */
-        //"allowUnreachableCode": true,                      /* Disable error reporting for unreachable code. */
+        // "allowUnusedLabels": true,                        /* Disable error reporting for unused labels. */
+        // "allowUnreachableCode": true,                     /* Disable error reporting for unreachable code. */
 
         /* Completeness */
         // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */

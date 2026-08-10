@@ -142,6 +142,10 @@ export async function compile({ projectDir, compilerPath, linkerPath, sysrootPat
         }
         const config_mtime = fs.statSync(path.join(project.path, CommonFiles.Config)).mtimeMs;
         const cli_hash = process.argv.slice(3).sort().filter(f => f !== '--no-cache').join();
+        const toolchain_lock_path = path.join(process.env.TACHYON_HOME!, CommonFiles.TachyonToolchainLock);
+        if (!fs.existsSync(toolchain_lock_path))
+            fs.writeFileSync(toolchain_lock_path, '{"compiler":"v1.0.0","sysroot":"W/\\"0\\""}');
+        const toolchain_lock = fs.readFileSync(toolchain_lock_path, 'utf8');
         if (!noCache && fs.existsSync(path.join(project.path, CommonDirs.Objs))) {
             try {
                 const projectCachePath = path.join(project.path, CommonDirs.Objs, CommonFiles.ProjectCache);
@@ -152,6 +156,10 @@ export async function compile({ projectDir, compilerPath, linkerPath, sysrootPat
                 }
                 else if (projCache.last_cli_hash !== cli_hash) {
                     console.warn('Compilation command-line arguments changed. Forcing full rebuild.');
+                    noCache = true;
+                }
+                else if (projCache.toolchain_lock !== toolchain_lock) {
+                    console.warn('Locally installed toolchain change detected. Forcing full rebuild.');
                     noCache = true;
                 }
                 else
@@ -197,6 +205,9 @@ export async function compile({ projectDir, compilerPath, linkerPath, sysrootPat
         console.info('Linking...');
         linkProject(project, extraLinkerFlags, ld);
         console.info('Creating RPL...');
+        if (process.env.TACHYON_DEBUG) {
+            fs.copyFileSync(project.intermediateELFPath, path.join(project.outputDir, outFilename + '.debug.elf'), fs.constants.COPYFILE_FICLONE);
+        }
         const elf = new RPL(fs.readFileSync(project.intermediateELFPath), { parseRelocs: true });
         if (convMap)
             convHooks(elf, convMap, target.console);
@@ -207,7 +218,9 @@ export async function compile({ projectDir, compilerPath, linkerPath, sysrootPat
         fs.rmSync(project.intermediateELFPath, { force: true, recursive: false });
         artifacts.push(finalRPLPath);
         fs.writeFileSync(path.join(project.path, CommonDirs.Objs, CommonFiles.ProjectCache), JSON.stringify({
-            config_mtime, last_cli_hash: cli_hash,
+            config_mtime,
+            last_cli_hash: cli_hash,
+            toolchain_lock,
         } satisfies ProjectCacheJson, null, 2));
         const targetDuration = performance.now() - targetStartTime;
         const durationStr = targetDuration >= 1000 ? `${(targetDuration / 1000).toFixed(2)} s` : `${targetDuration.toFixed(1)} ms`;

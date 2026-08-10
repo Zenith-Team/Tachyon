@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { abort, CommonFiles, CommonDirs } from '../../utils.js';
-import { linkerPrettier } from '../../utils/linkerpretty.js';
+import { lldpretty } from '../../utils/linkerpretty.js';
 import type { Project } from '../../shared/project.js';
 export const LD_PROLOGUE = `
 MEMORY {
@@ -114,13 +114,13 @@ export function linkProject(proj: Project, extraLinkerFlags: string[], ld: strin
         if (process.env.TACHYON_LINKERPRETTY === '0')
             process.stdout.write(linker.stdout);
         else
-            linkerPrettier(linker.stdout.toString('utf8'));
+            lldpretty(linker.stdout.toString('utf8'));
     }
     if (linker.stderr.length > 0) {
         if (process.env.TACHYON_LINKERPRETTY === '0')
             process.stderr.write(linker.stderr);
         else
-            linkerPrettier(linker.stderr.toString('utf8'));
+            lldpretty(linker.stderr.toString('utf8'));
     }
     if (linker.error || linker.signal || linker.status !== 0) {
         abort('linker command failed!', linker.status || 1);

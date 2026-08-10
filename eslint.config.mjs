@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
     globalIgnores([
-        '**/.vscode', '**/dist', '**/*.old.*', 'eslint.config.mjs',
+        '**/.vscode', '**/dist*', '**/*.old.*', 'eslint.config.mjs',
     ]),
     eslint.configs.recommended,
     tseslint.configs.strictTypeChecked,

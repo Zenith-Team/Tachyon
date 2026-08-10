@@ -5,9 +5,9 @@ import path from 'node:path';
 import semver from 'semver';
 import JSON5 from 'json5';
 import { extract as extractZip } from 'zip-lib';
-import { abort, CommonDirs, CommonFiles, sha256hex, fs_move, isSafeFilename, fs_rmrf_unlink } from '../utils.js';
-import { type DirectDependency, type ResolvedDependency, Lockfile } from './lockfile.js';
-import { locationType, PkgInstallSourceLocationType } from './pkg-resolver.js';
+import { abort, CommonDirs, CommonFiles, sha256hex, fs_move, isSafeFilename, fs_rmrf_unlink, toPortablePath } from '../utils.js';
+import { type DirectDependency, type ResolvedDependency, isPinnedVersionConstraint, Lockfile } from './lockfile.js';
+import { githubRepoFromReleaseURL, isGitHubRepoRef, locationType, normalizeGitHubReleaseURL, normalizeGitHubRepoRef, PkgInstallSourceLocationType, } from './pkg-resolver.js';
 import { buildRegistryFromDirectDeps, resolvePackageVersions } from './pkg-registry.js';
 import { mapConcurrent } from './pkg-installer.js';
 import { AssertField, type ProjectConfigFile } from '../shared/projectconfig.js';
@@ -87,12 +87,51 @@ export async function updatePackagesWithResolution(lockfile: Lockfile, projectDi
         if (!lockfile.DirectDependencies[name]) {
             abort.thrown(`"${name}" is not a direct dependency. Available: ${Object.keys(lockfile.DirectDependencies).join(', ') || '(none)'}`);
         }
-        filteredDirectDeps[name] = lockfile.DirectDependencies[name]!;
+        const directDep = lockfile.DirectDependencies[name];
+        if (!isGitHubRepoRef(directDep.Source) && directDep.Source === name) {
+            const recoveredSource = githubRepoFromReleaseURL(lockfile.ResolvedDependencies[name]?.Source ?? '');
+            if (recoveredSource) {
+                console.info(`  repaired legacy source for "${name}": ${recoveredSource}`);
+                directDep.Source = recoveredSource;
+            }
+        }
+        const locType = await locationType(name, directDep.Source);
+        if (locType !== PkgInstallSourceLocationType.GitHubRepo) {
+            console.info(`  skip "${name}": not a GitHub-hosted package (${directDep.Source})`);
+            continue;
+        }
+        directDep.Source = normalizeGitHubRepoRef(directDep.Source);
+        const resolvedDependency = lockfile.ResolvedDependencies[name];
+        if (resolvedDependency) {
+            resolvedDependency.Source = normalizeGitHubReleaseURL(resolvedDependency.Source);
+        }
+        filteredDirectDeps[name] = {
+            ...directDep,
+        };
+    }
+    const updateTargets = Object.keys(filteredDirectDeps);
+    if (updateTargets.length === 0) {
+        console.info('No GitHub-hosted direct dependencies to update.');
+        return;
     }
     const registry = await buildRegistryFromDirectDeps(filteredDirectDeps);
     const resolved = await resolvePackageVersions(filteredDirectDeps, registry, pre);
-    console.info('Resolved update versions:', resolved);
-    await updateDepsWithResolved(lockfile, projectDir, targets, resolved, pre);
+    for (const name of updateTargets) {
+        const directDep = filteredDirectDeps[name]!;
+        if (!isPinnedVersionConstraint(directDep.Version))
+            continue;
+        const currentVersion = lockfile.ResolvedDependencies[name]?.Current;
+        const resolvedVersion = resolved[name];
+        if (!currentVersion || currentVersion !== resolvedVersion)
+            continue;
+        const latestVersion = semver.maxSatisfying(registry[name] ?? [], '*', { includePrerelease: pre });
+        if (latestVersion && semver.gt(latestVersion, currentVersion)) {
+            console.warn(`Package "${name}" is pinned to [${directDep.Version}], ignored newer version [${latestVersion}].`);
+        }
+    }
+    console.info('Resolved update versions:');
+    console.debug(resolved);
+    await updateDepsWithResolved(lockfile, projectDir, updateTargets, resolved, pre);
 }
 export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: string, packageNames: string[], resolved: Record<string, string>, pre: boolean = false): Promise<void> {
     const targets = packageNames.length > 0 ? packageNames : Object.keys(lockfile.DirectDependencies);
@@ -113,9 +152,17 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
                 console.warn(`  skip "${pkgName}": not found in resolved versions`);
                 continue;
             }
+            if (!semver.valid(resolvedVersion)) {
+                throw new Error(`Invalid resolved version for package "${pkgName}": ${resolvedVersion}`);
+            }
             if ((await locationType(pkgName, directDep.Source)) !== PkgInstallSourceLocationType.GitHubRepo) {
                 console.info(`  skip "${pkgName}": not a GitHub-hosted package (${directDep.Source})`);
                 continue;
+            }
+            directDep.Source = normalizeGitHubRepoRef(directDep.Source);
+            const currentResolvedDependency = lockfile.ResolvedDependencies[pkgName];
+            if (currentResolvedDependency) {
+                currentResolvedDependency.Source = normalizeGitHubReleaseURL(currentResolvedDependency.Source);
             }
             const currentVersion = lockfile.ResolvedDependencies[pkgName]?.Current ?? '0.0.0';
             if (resolvedVersion === currentVersion) {
@@ -128,11 +175,20 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
             tempDirs.push(tempDir);
             const newConfig = JSON5.parse<ProjectConfigFile>(await fs.readFile(path.join(tempDir, CommonFiles.Config), 'utf8'));
             AssertField.Type('Name', newConfig.Name, 'string', true);
+            AssertField.Type('Version', newConfig.Version, 'string', true);
             if (!isSafeFilename(newConfig.Name))
                 abort.thrown(`Package "${newConfig.Name}" has an illegal name`);
             if (newConfig.Name !== pkgName) {
                 abort.thrown(`Name mismatch: lockfile key is "${pkgName}" but package config says "${newConfig.Name}". ` +
                     'This may indicate a mis-configured package or lockfile corruption.');
+            }
+            const packageVersion = semver.valid(newConfig.Version);
+            if (!packageVersion) {
+                abort.thrown(`Package "${pkgName}" has invalid Version "${newConfig.Version}"; expected a fixed semantic version.`);
+            }
+            if (packageVersion !== resolvedVersion) {
+                abort.thrown(`Version mismatch for package "${pkgName}": resolved release ${resolvedVersion} ` +
+                    `but package config declares ${newConfig.Version}.`);
             }
             const embeddedLockfile = existsSync(path.join(tempDir, CommonFiles.Lockfile))
                 ? Lockfile.load(path.join(tempDir, CommonFiles.Lockfile))
@@ -150,16 +206,28 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
                 newConfig,
             });
         }
-        if (plan.length === 0) {
-            console.info('All specified packages are already up to date.');
-            return;
-        }
         const updatedDirectDeps: Record<string, DirectDependency> = { ...lockfile.DirectDependencies };
+        for (const pkgName of targets) {
+            const resolvedVersion = resolved[pkgName];
+            const currentConstraint = updatedDirectDeps[pkgName]!.Version;
+            if (resolvedVersion && !isPinnedVersionConstraint(currentConstraint)) {
+                updatedDirectDeps[pkgName] = {
+                    ...updatedDirectDeps[pkgName]!,
+                    Version: '^' + resolvedVersion,
+                };
+            }
+        }
         for (const entry of plan) {
             updatedDirectDeps[entry.pkgName] = {
                 ...updatedDirectDeps[entry.pkgName]!,
                 Dependencies: entry.newSubDirect,
             };
+        }
+        if (plan.length === 0) {
+            lockfile.DirectDependencies = updatedDirectDeps;
+            lockfile.save();
+            console.success('All specified packages are up to date.');
+            return;
         }
         const versionChanges = new Map<string, string>(plan.map(e => [e.pkgName, e.newVersion]));
         for (const entry of plan) {
@@ -194,7 +262,7 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
                 Current: entry.newVersion,
                 Source: entry.sourceURL,
                 Hash: entry.sha256,
-                IncludeDirs: (entry.newConfig.IncludeDirs ?? []).map(dir => path.relative(projectDir, path.join(packagesDir, entry.pkgName, dir))),
+                IncludeDirs: (entry.newConfig.IncludeDirs ?? []).map(dir => toPortablePath(path.relative(projectDir, path.join(packagesDir, entry.pkgName, dir)))),
             };
         }
         const subDepUpdates = new Map<string, ResolvedDependency>();
@@ -218,14 +286,23 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
             if (sha256 !== subDep.Hash) {
                 abort.thrown(`Integrity check failed for sub-dep "${subName}" (expected ${subDep.Hash}, got ${sha256})`);
             }
+            const subConfig = JSON5.parse<ProjectConfigFile>(await fs.readFile(path.join(tempDir, CommonFiles.Config), 'utf8'));
+            AssertField.Type('Version', subConfig.Version, 'string', true);
+            const packageVersion = semver.valid(subConfig.Version);
+            if (!packageVersion) {
+                abort.thrown(`Package "${subName}" has invalid Version "${subConfig.Version}"; expected a fixed semantic version.`);
+            }
+            if (packageVersion !== subDep.Current) {
+                abort.thrown(`Version mismatch for package "${subName}": resolved release ${subDep.Current} ` +
+                    `but package config declares ${subConfig.Version}.`);
+            }
             const finalDir = path.join(packagesDir, subName);
             await fs_rmrf_unlink(finalDir);
             fs_move(tempDir, finalDir);
-            const subConfig = JSON5.parse<ProjectConfigFile>(await fs.readFile(path.join(finalDir, CommonFiles.Config), 'utf8'));
             return {
                 [subName]: {
                     ...subDep,
-                    IncludeDirs: (subConfig.IncludeDirs ?? []).map(dir => path.relative(projectDir, path.join(packagesDir, subName, dir))),
+                    IncludeDirs: (subConfig.IncludeDirs ?? []).map(dir => toPortablePath(path.relative(projectDir, path.join(packagesDir, subName, dir)))),
                 }
             };
         }, 10);

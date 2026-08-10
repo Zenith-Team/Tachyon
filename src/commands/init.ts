@@ -62,7 +62,7 @@ export function cli_handler(args: string[]): void {
     fs.writeFileSync(path.join(projectPath, 'src', 'Main.cpp'), `void main() {
     // Hello world!
 }\n`);
-    fs.writeFileSync(path.join(projectPath, '.clangd'), 'CompileFlags: {\n    Add: ["-std=c++23"]\n}\nDiagnostics: {\n    Suppress: [\n        static_assert_requirement_failed,\n        main_returns_nonint\n    ]\n}\nDocumentation: {\n    CommentFormat: Doxygen\n}\n');
+    fs.writeFileSync(path.join(projectPath, '.clangd'), "CompileFlags: {\n    Add: [\"-std=c++23\"]\n}\nDiagnostics: {\n    Suppress: [\n        static_assert_requirement_failed,\n        main_returns_nonint\n    ]\n}\nDocumentation: {\n    CommentFormat: Doxygen\n}\n");
     fs.mkdirSync(path.join(projectPath, CommonDirs.ConversionMaps));
     fs.writeFileSync(path.join(projectPath, CommonDirs.ConversionMaps, `${hex(parsedTID, 16, '')}.convmap`), '// Write your conversion mappings here!\n');
     fs.writeFileSync(path.join(projectPath, CommonFiles.MainSymbolMap), `@addresses_from "${formattedTID}"\n\n` +

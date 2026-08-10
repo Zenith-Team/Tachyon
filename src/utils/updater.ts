@@ -19,7 +19,7 @@ export async function checkForUpdate(): Promise<boolean> {
                 return false;
             }
         }
-        const UPDATE_CHECK_INTERVAL = Number(process.env.TACHYON_UPDATE_CHECK_INTERVAL) || (604800000);
+        const UPDATE_CHECK_INTERVAL = Number(process.env.TACHYON_UPDATE_CHECK_INTERVAL) || (7200000);
         const shouldCheckUpdate = (now - prev) > UPDATE_CHECK_INTERVAL;
         if (shouldCheckUpdate) {
             fs.writeFileSync(updateCheckPath, now.toString());

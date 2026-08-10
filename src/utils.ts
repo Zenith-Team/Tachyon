@@ -18,6 +18,7 @@ export type s16 = number;
 export type s32 = number;
 export type s64 = bigint;
 export class AbortError extends Error {
+    // eslint-disable-next-line unicorn/custom-error-definition
     constructor(msg: string, public code: number = 1) {
         super(msg);
         this.name = 'AbortError';
@@ -118,7 +119,7 @@ export async function downloadFile(url: string, toPath: string, reqInit?: Reques
             throw new Error(`Non-OK status code: ${res.status.toString()} (${res.statusText})`);
         if (!res.body)
             throw new Error(`No response body: ${res.status.toString()} (${res.statusText})`);
-        // @ts-expect-error ----------
+        // @ts-expect-error ----------                   
         const rstream = Readable.fromWeb(res.body);
         const wstream = fs.createWriteStream(toPath);
         await pipeline(rstream, wstream);

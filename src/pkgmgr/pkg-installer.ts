@@ -3,11 +3,12 @@ import os from 'node:os';
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import semver from 'semver';
 import { extract as extractZip } from 'zip-lib';
-import { abort, CommonDirs, CommonFiles, fs_move, isSafeFilename, trySymlink, sha256hex, fs_rmrf_unlink, isFolderAt } from '../utils.js';
+import { abort, CommonDirs, CommonFiles, fs_move, isSafeFilename, trySymlink, sha256hex, fs_rmrf_unlink, isFolderAt, toPortablePath } from '../utils.js';
 import { AssertField, type ProjectConfigFile } from '../shared/projectconfig.js';
-import { locationType, PkgInstallSourceLocationType } from './pkg-resolver.js';
-import { type DirectDependency, type ResolvedDependency, Lockfile } from './lockfile.js';
+import { locationType, normalizeGitHubRepoRef, PkgInstallSourceLocationType } from './pkg-resolver.js';
+import { type DirectDependency, type ResolvedDependency, isPinnedVersionConstraint, Lockfile } from './lockfile.js';
 import { reachableNames, downloadAndExtract } from './pkg-updater.js';
 import { buildRegistryFromDirectDeps, resolvePackageVersions } from './pkg-registry.js';
 export async function mapConcurrent<T, R>(inputs: T[], fn: (input: T) => Promise<R>, concurrency: number): Promise<R[]> {
@@ -26,23 +27,31 @@ export async function mapConcurrent<T, R>(inputs: T[], fn: (input: T) => Promise
 interface InstallFromTempResult {
     pkgName: string;
 }
-async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, tempDir: string, pkgRef: string, constraint: string, sourceURL: string, hash: string, isDirect: boolean): Promise<InstallFromTempResult> {
+async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, tempDir: string, pkgRef: string, versionConstraint: string, sourceURL: string, hash: string, isDirect: boolean, resolvedVersion?: string): Promise<InstallFromTempResult> {
     const isSymlink = hash === '0';
     const sourceDir = path.resolve(tempDir);
-    console.info('Parsing package...');
     const tpkgConfig = JSON5.parse<ProjectConfigFile>(await fs.readFile(path.join(sourceDir, CommonFiles.Config), 'utf8'));
     AssertField.Type('Name', tpkgConfig.Name, 'string', true);
     const tpkgName = tpkgConfig.Name;
     if (!isSafeFilename(tpkgName)) {
         abort.thrown(`Package ${tpkgName} has illegal name`);
     }
+    AssertField.Type('Version', tpkgConfig.Version, 'string', true);
+    const packageVersion = semver.valid(tpkgConfig.Version);
+    if (!packageVersion) {
+        abort.thrown(`Package "${tpkgName}" has invalid Version "${tpkgConfig.Version}"; expected a fixed semantic version.`);
+    }
+    if (resolvedVersion && packageVersion !== resolvedVersion) {
+        abort.thrown(`Version mismatch for package "${tpkgName}": resolved release ${resolvedVersion} ` +
+            `but package config declares ${packageVersion}.`);
+    }
     const tpkgFinalDir = path.join(projectDir, CommonDirs.Packages, tpkgName);
     const resolvedTpkgLock: ResolvedDependency = {
-        Current: tpkgConfig.Version,
+        Current: packageVersion,
         Source: sourceURL,
         Hash: hash,
         IncludeDirs: (tpkgConfig.IncludeDirs ?? []).map(dir => {
-            return path.relative(projectDir, path.join(projectDir, CommonDirs.Packages, tpkgName, dir));
+            return toPortablePath(path.relative(projectDir, path.join(projectDir, CommonDirs.Packages, tpkgName, dir)));
         }),
     };
     const existing = lockfile.ResolvedDependencies[tpkgName];
@@ -52,7 +61,7 @@ async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, te
             '  Run `tachyon update` or adjust your dependency constraints.');
     }
     if (!isSymlink) {
-        fs_move(sourceDir, tpkgFinalDir);
+        fs_move(sourceDir, tpkgFinalDir, true);
     }
     else {
         await fs_rmrf_unlink(tpkgFinalDir);
@@ -87,7 +96,7 @@ async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, te
     if (isDirect) {
         lockfile.DirectDependencies[tpkgName] = {
             Source: pkgRef,
-            Version: constraint,
+            Version: isSymlink ? '*' : (isPinnedVersionConstraint(versionConstraint) ? versionConstraint : `^${packageVersion}`),
             Dependencies: depdeps,
         };
     }
@@ -227,6 +236,7 @@ export async function installAllLockfileDeps(lockfile: Lockfile, projectDir: str
             const parsedURL = URL.parse(dependency.Source);
             if (parsedURL?.hostname !== 'github.com')
                 abort.thrown(`Invalid source location for package ${dependencyName}: ${dependency.Source}`);
+            console.info(`⬇︎ Downloading ${dependencyName}@${dependency.Current} ...`);
             const req = await fetch(parsedURL, { signal: AbortSignal.timeout(120000) });
             if (!req.ok || !req.body)
                 abort.thrown(`Failed to fetch remote release for ${dependencyName} from: ${dependency.Source} (${req.status} ${req.statusText})`);
@@ -244,7 +254,9 @@ export async function installAllLockfileDeps(lockfile: Lockfile, projectDir: str
                 await fs.rm(tpkgFinalDir, { recursive: true, force: true });
             }
             fs_move(tpkgUnpackTempDir, tpkgFinalDir);
+            console.success(`✓ Downloaded ${dependencyName}@${dependency.Current}`);
         }, 5);
+        console.success('Project dependencies successfully installed.');
     }
     finally {
         for (const dir of tempDirs) {
@@ -272,6 +284,9 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
         if (!source) {
             throw new Error(`Assertion failure: ${pkgRef}`);
         }
+        if (!constraint || semver.validRange(constraint) === null) {
+            throw new Error(`Invalid semantic version constraint in package reference ${pkgRef}`);
+        }
         let pkgName: string;
         const locType = await locationType(pkgRef, source);
         if (locType === PkgInstallSourceLocationType.GitHubRepo) {
@@ -291,7 +306,9 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
         if (!pkgName)
             throw new Error(`Could not determine pkgName for ${source}`);
         const dep: DirectDependency = {
-            Source: source,
+            Source: locType === PkgInstallSourceLocationType.GitHubRepo
+                ? normalizeGitHubRepoRef(source)
+                : source,
             Version: constraint,
         };
         return { name: pkgName, dep };
@@ -304,6 +321,7 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
             tempDir: string;
             sha256: string;
             sourceURL: string;
+            resolvedVersion?: string;
         }>();
         for (const pkgRef of packageRefs) {
             const { name, dep } = await packageRefToDep(pkgRef);
@@ -338,14 +356,17 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
                 const resolvedVersion = resolved[name];
                 if (resolvedVersion === undefined)
                     throw new Error(`Failed to resolve version for package ${name}`);
+                console.info(`⬇︎ Downloading ${name}@${resolvedVersion} ...`);
                 const downloadURL = `https://github.com/${dep.Source}/releases/download/${resolvedVersion}/package.zip`;
                 const { tempDir, sha256 } = await downloadAndExtract(downloadURL);
                 tempDirs.push(tempDir);
-                packageInfo.set(name, { tempDir, sha256, sourceURL: downloadURL });
+                packageInfo.set(name, { tempDir, sha256, sourceURL: downloadURL, resolvedVersion });
+                console.success(`✓ Downloaded ${name}@${resolvedVersion}`);
             }
         }
         for (const [name, info] of packageInfo) {
-            await installPackageFromTemp(lockfile, projectDir, info.tempDir, name, newDeps[name]!.Version, info.sourceURL, info.sha256, true);
+            const dependency = newDeps[name]!;
+            await installPackageFromTemp(lockfile, projectDir, info.tempDir, dependency.Source, dependency.Version, info.sourceURL, info.sha256, true, info.resolvedVersion);
         }
         const packagesDir = path.join(projectDir, CommonDirs.Packages);
         await resolveSubDependencies(lockfile, projectDir, packagesDir);

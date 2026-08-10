@@ -68,7 +68,7 @@ export function runCemu({ cemuBinary, gameTitleID, manual, cemuFlags, logConfig,
             }, 200);
         });
         if (useFallbackPolling) {
-            console.warn('It appears you have not launched the game/app yet.\nDue to --manual flag being active, Tachyon will not abort and continue waiting indefinitely for you to run the game/app.\n' +
+            console.warn("It appears you have not launched the game/app yet.\nDue to --manual flag being active, Tachyon will not abort and continue waiting indefinitely for you to run the game/app.\n" +
                 $.underline('NOTE: After this message appears, the polling rate of initial log detection slows down to once every 5 seconds, logging may have a delayed start.\n'));
             await new Promise<void>(resolve => {
                 const interval = setInterval(() => {
@@ -113,9 +113,9 @@ export function runCemu({ cemuBinary, gameTitleID, manual, cemuFlags, logConfig,
             if (!logConfig.time)
                 line = timeless;
             let activePrefix: string = cemuPrefix;
-            if (!logState.crashlogMode && lineRaw === '-----------------------------------------')
+            if (!logState.crashlogMode && lineRaw === "-----------------------------------------")
                 return;
-            if (prevLine === '-----------------------------------------') {
+            if (prevLine === "-----------------------------------------") {
                 if (lineRaw === '   Game info') {
                     if (!logConfig.crashlog)
                         console.log($.underline.red(`${$.bold('[-]')} Cemu has crashed! (Crashlog suppressed due to your current logging settings)`));

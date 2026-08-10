@@ -1,7 +1,5 @@
 node_modules
-dist
-dist/*
-dist-public
+/dist*
 src/_*
 *.zip
 *.tgz
@@ -11,6 +9,7 @@ src/_*
 *.o
 /*.md
 !/README.md
+/.pack*
 
 dev_assets
 coverage

@@ -153,7 +153,7 @@ function compilerThread(proj: Project, compilerArgs: readonly string[], fileQueu
             const finalDepFile = finalOutputObj.slice(0, -2) + '.d';
             fs_move(osTmpDepFile, finalDepFile, true);
             if (dumpCompileDB)
-                fs_move(tmpOutputObj + '.cdb.json', finalOutputObj + '.cdb.json');
+                fs_move(tmpOutputObj + '.cdb.json', finalOutputObj + '.cdb.json', true);
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     })();
@@ -176,7 +176,11 @@ function mergeCompileDB(proj: Project) {
         else
             first = false;
         const cdbEntryPath = path.join(proj.activeObjsDir, file);
-        const cdbEntry = JSON.parse(fs.readFileSync(cdbEntryPath).subarray(0, -2).toString('utf8')) as CompileDBEntry;
+        let cdbEntryData = fs.readFileSync(cdbEntryPath).subarray(0, -2).toString('utf8');
+        if (process.platform === 'win32') {
+            cdbEntryData = cdbEntryData.slice(0, -1);
+        }
+        const cdbEntry = JSON.parse(cdbEntryData) as CompileDBEntry;
         cdbEntry.arguments = cdbEntry.arguments.filter(arg => !arg.startsWith('-ferror-limit='));
         cdbEntry.arguments.push('-ferror-limit=0');
         cdbEntry.arguments.push('-D', '__clangd__');

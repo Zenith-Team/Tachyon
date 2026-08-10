@@ -53,6 +53,7 @@ interface ProjectConfigFileTarget {
 export interface ProjectCacheJson {
     config_mtime: number;
     last_cli_hash: string;
+    toolchain_lock: string;
 }
 export const AssertField = {
     Type(name: string, value: unknown, type: 'boolean' | 'number' | 'string', required = false) {
@@ -86,12 +87,12 @@ export function loadProjectConfig(projPath: string, excludedCompilerFlags: strin
         const variables = config.Variables ?? {};
         AssertField.Type('WURPLSVersion', config.WURPLSVersion, 'string', true);
         const projWURPLSVer = config.WURPLSVersion;
-        if (projWURPLSVer !== '1.0')
-            configError(`WURPLSVersion is ${projWURPLSVer}, expected 1.0.`);
+        if (projWURPLSVer !== "1.0")
+            configError(`WURPLSVersion is ${projWURPLSVer}, expected ${"1.0"}.`);
         AssertField.Type('Name', config.Name, 'string', true);
         const name = processStringVars(config.Name, variables);
         if (!isSafeFilename(name))
-            configError('Invalid project Name, it can only contain the characters: a-z, A-Z, 0-9, and _ - ! @ + ; = # ^\nThe name must also be under 32 characters in length and cannot begin or end with "-"');
+            configError("Invalid project Name, it can only contain the characters: a-z, A-Z, 0-9, and _ - ! @ + ; = # ^\nThe name must also be under 32 characters in length and cannot begin or end with \"-\"");
         AssertField.Type('Description', config.Description, 'string');
         const description = processStringVars(config.Description?.trim() || 'A Telkin mod.', variables);
         AssertField.Type('Version', config.Version, 'string', true);
@@ -103,7 +104,7 @@ export function loadProjectConfig(projPath: string, excludedCompilerFlags: strin
         AssertField.Type('Type', config.Type, 'string', true);
         const type = config.Type;
         const validTypes = name === 'Telkin' ? ValidModuleTypes : ValidModuleTypes.filter(t => t !== 'Special');
-        // @ts-expect-error ----------
+        // @ts-expect-error ----------                    
         if (!validTypes.includes(type))
             configError(`Invalid project Type, must be one of: ${ValidModuleTypes.join(', ')}`);
         AssertField.Array('SourceDirs', config.SourceDirs);

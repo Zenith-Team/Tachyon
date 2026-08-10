@@ -67,7 +67,7 @@ function validateRelocs(rpl: RPL) {
             }
         }
         if (foundInvalidReloc)
-            abort('The RPL cannot be created because the compiled ELF contains unsupported relocations, see errors above.\nIf you know this relocation type should be supported, please file a bug report: https://github.com/Zenith-Team/Tachyon/issues');
+            abort("The RPL cannot be created because the compiled ELF contains unsupported relocations, see errors above.\nIf you know this relocation type should be supported, please file a bug report: https://github.com/Zenith-Team/Tachyon/issues");
     }
 }
 function setSymStrTabAddresses(rpl: RPL) {

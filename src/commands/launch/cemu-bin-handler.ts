@@ -35,14 +35,16 @@ function validateCemuBinary(cemuBin: string, alreadyCheckedFlatpak = false) {
             throw error;
         abort(`Invalid used Cemu binary path, could not execute. (Using: ${cemuBin})`);
     }
-    abort(`Invalid used Cemu binary path, not recognized as a Cemu executable. (Using: ${cemuBin})`);
+    const extraPlatformHint = process.platform === 'win32'
+        ? ("\nOn Windows, this may be caused by an outdated Cemu 2.6 (or older) installation.\nIf that is the case, you should update to a Cemu 2.7 nightly from https://cemu.info/ActionBuilds.php") : '';
+    abort(`Invalid used Cemu binary path, not recognized as a Cemu executable. (Using: ${cemuBin})\n${extraPlatformHint}`);
 }
 function hasFlatpakCemu(): boolean {
     if (process.platform !== 'linux')
         return false;
     try {
         const flatpak = spawnSync('flatpak', ['list'], { stdio: 'pipe' });
-        if (flatpak.stdout.toString('utf8').includes('info.cemu.Cemu'))
+        if (flatpak.stdout.toString('utf8').includes("info.cemu.Cemu"))
             return true;
         console.debug('linux user has flatpak but cemu not installed');
         return false;
@@ -76,7 +78,7 @@ export function findCemuBinary(userSetPath?: string): string {
             validateCemuBinary(foundDefault, true);
             return foundDefault;
         }
-        abort('No Cemu path provided, and no default Cemu installation could be found.\nThe CEMU_BIN variable is not set, and no path was provided with the --cemu option.');
+        abort("No Cemu path provided, and no default Cemu installation could be found.\nThe CEMU_BIN variable is not set, and no path was provided with the --cemu option.");
     }
     const cemuBinPath = path.resolve(userSetPath);
     if (!fs.existsSync(cemuBinPath))

@@ -23,8 +23,8 @@ function generateExportsAssemblySource(exports: ProjectExports): string {
 }
 export function assembleRPLExports(project: Project, exports: ProjectExports) {
     const exportsAsmSrc = generateExportsAssemblySource(exports);
-    const exports_o_path = `${path.join(project.activeObjsDir, '__exports.S')}.o`;
-    project.asmFiles.push('__exports.S');
+    const exports_o_path = `${path.join(project.activeObjsDir, "__exports.S")}.o`;
+    project.asmFiles.push("__exports.S");
     const clangCXXCommand = project.compilerCommand;
     const clangCXXArgs = [
         '-target', 'powerpc-eabi',

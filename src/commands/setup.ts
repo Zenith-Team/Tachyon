@@ -170,10 +170,10 @@ async function downloadCompiler(destFolder: string) {
 async function downloadSysroot(destFolder: string, prevETag?: string) {
     const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tachyondl-sys'));
     const sysrootTmpZip = path.join(TMP, 'sysroot.zip');
-    const etag = await downloadFile('https://github.com/Zenith-Team/RedStandard/archive/refs/heads/main.zip', sysrootTmpZip, { headers: {
-        ...(prevETag ? { 'If-None-Match': prevETag } : undefined),
-        Cookie: process.env.__TDEV_GH_COOKIE__ ?? '',
-    } }, true);
+    const etag = await downloadFile("https://github.com/Zenith-Team/RedStandard/archive/refs/heads/main.zip", sysrootTmpZip, { headers: {
+            ...(prevETag ? { 'If-None-Match': prevETag } : undefined),
+            Cookie: process.env.__TDEV_GH_COOKIE__ ?? '',
+        } }, true);
     if (etag)
         await extractZip(sysrootTmpZip, destFolder, { overwrite: false, forceFileMode: 0o644, safeSymlinksOnly: true });
     fs.rmSync(TMP, { recursive: true, force: true });
@@ -182,17 +182,24 @@ async function downloadSysroot(destFolder: string, prevETag?: string) {
 function checkSystemLinkers() {
     const LINKERS = ['ld.lld', 'lld'];
     let foundLinker: string | undefined;
+    if (process.platform === 'win32' && fs.existsSync("C:\\Program Files\\LLVM\\bin\\ld.lld.exe")) {
+        validateLinker("C:\\Program Files\\LLVM\\bin\\ld.lld.exe");
+        foundLinker = "C:\\Program Files\\LLVM\\bin\\ld.lld.exe";
+    }
     for (const linker of LINKERS) {
+        if (foundLinker)
+            break;
         const found = which.sync(linker, { nothrow: true });
         if (found) {
             validateLinker(found);
             foundLinker = found;
-            console.success('✓ Valid linker found on system.');
             break;
         }
     }
-    if (foundLinker)
+    if (foundLinker) {
+        console.success('✓ Valid linker found on system.');
         return foundLinker;
+    }
     let linkerInstallCommand = $.red('[unknown system package manager, please install your system\'s "lld" package]');
     switch (process.platform) {
         case 'win32':
@@ -219,8 +226,13 @@ function checkSystemLinkers() {
     }
     console.info('No existing valid linker found, please run the following command to install it:');
     console.info(`${$.gray('$ >')} ${$.whiteBright(linkerInstallCommand)}\n`);
-    console.info('Once you\'ve ran the above command, verify LLD is in your PATH and re-run the setup command.');
-    console.info('You may need to relaunch your terminal for Tachyon to detect the newly installed linker.');
+    if (process.platform === 'win32') {
+        console.info(`Once you've run the above command, verify LLD is installed at "${"C:\\Program Files\\LLVM\\bin\\ld.lld.exe"}" and re-run the setup command.`);
+    }
+    else {
+        console.info('Once you\'ve run the above command, verify LLD is in your PATH and re-run the setup command.');
+        console.info('You may need to relaunch your terminal for Tachyon to detect the newly installed linker.');
+    }
     process.exit();
 }
 async function resetConfiguration() {
@@ -233,6 +245,6 @@ async function resetConfiguration() {
     }
     fs.rmSync(path.resolve(CommonFiles.TachyonConfig), { force: true });
     fs.rmSync(path.resolve(process.env.TACHYON_HOME!), { recursive: true, force: true });
-    console.warn('Please note that if you have set system-level environment variables for Tachyon settings, Tachyon cannot reset those for you.\nYou must manually unset/reset those environment variables to proceed if the setup command still blocks you even after this reset.');
+    console.warn("Please note that if you have set system-level environment variables for Tachyon settings, Tachyon cannot reset those for you.\nYou must manually unset/reset those environment variables to proceed if the setup command still blocks you even after this reset.");
     console.success('Configuration reset complete.');
 }

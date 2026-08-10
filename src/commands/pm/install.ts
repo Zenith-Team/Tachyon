@@ -25,9 +25,11 @@ export function cli_handler(args: string[]): Promise<void> {
     }
     const lockfile = Lockfile.load(lockfilePath);
     if (packages.length === 0) {
+        console.info('Installing project dependencies from lockfile...');
         return installAllLockfileDeps(lockfile, projectDir);
     }
     else {
+        console.info(`Preparing to install ${packages.length}+ new packages...`);
         return installPackagesWithResolution(lockfile, projectDir, packages, pre);
     }
 }

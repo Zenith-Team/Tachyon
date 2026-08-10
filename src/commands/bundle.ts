@@ -47,9 +47,11 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
         config: ProjectConfig;
     }
     const DEPS_RPL_MAP = new Map<bigint, RPLInfo[]>();
-    const depDirs = fs.readdirSync(path.join(projectDir, CommonDirs.Packages));
+    const packagesDir = path.join(projectDir, CommonDirs.Packages);
+    fs.mkdirSync(packagesDir, { recursive: true });
+    const depDirs = fs.readdirSync(packagesDir);
     for (const depName of depDirs) {
-        const depDir = path.join(projectDir, CommonDirs.Packages, depName);
+        const depDir = path.join(packagesDir, depName);
         const outDir = path.join(depDir, CommonDirs.DefaultOutputPath);
         const depProjDir = validateProjectFolder(depDir);
         const depConfig = loadProjectConfig(depProjDir);
@@ -83,7 +85,10 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
     }
     const ownContentPath = path.join(projectDir, 'content');
     if (fs.existsSync(ownContentPath)) {
+        const ownContentFilter = forLaunch ? undefined : createOwnContentFilter(projectDir);
         findFileConflicts(ownContentPath, bundleContentDir).forEach(conflict => {
+            if (ownContentFilter && !ownContentFilter(conflict.srcPath))
+                return;
             if (!process.env.TACHYON_SUPPRESS_ASSET_CONFLICT) {
                 console.warn(`Asset conflict, overwriting ${prettifyBundlePath(conflict.dstPath)} with ${conflict.srcPath}`);
             }
@@ -91,7 +96,12 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
                 fs.rmSync(conflict.dstPath, { force: true });
         });
         if (!forLaunch) {
-            fs.cpSync(ownContentPath, bundleContentDir, { recursive: true, force: true, mode: fs.constants.COPYFILE_FICLONE });
+            fs.cpSync(ownContentPath, bundleContentDir, {
+                recursive: true,
+                force: true,
+                mode: fs.constants.COPYFILE_FICLONE,
+                filter: ownContentFilter,
+            });
         }
         else {
             const ownFiles = fs.readdirSync(ownContentPath, { withFileTypes: true, recursive: true });
@@ -142,7 +152,7 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
             if (!fs.existsSync(rplPath))
                 abort(`RPL file "${path.basename(rplPath)}" is missing, but is required by your ${$.yellowBright(targetName).replace(',C', $.gray(' (Console)'))} target.`
                     + (rplPath.endsWith(',C.rpl') ? `\n        (Did you forget to compile with ${$.blueBright('--console')}?)` : '')
-                    + `\n        ${$.gray('Note: ')}${$.blueBright('tachyon package')} ${$.gray('will build every target automatically!')}`);
+                    + `\n        ${$.gray('Hint: Use')} ${$.blueBright('tachyon package')} ${$.gray('to build every target automatically before bundling.')}`);
             fs.cpSync(rplPath, path.join(bundleCodeDir, path.basename(rplPath)), { mode: fs.constants.COPYFILE_FICLONE });
         }
     }
@@ -182,6 +192,32 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
         });
         console.success(`${$.greenBright.bold('[✓ SUCCESS]')} Bundle with targets [${allTargets.join(', ')}] saved at: ${$.cyanBright(outputBundleZipPath)}`);
     }
+}
+function createOwnContentFilter(projectDir: string): ((source: string) => boolean) | undefined {
+    const gitignorePath = path.join(projectDir, '.gitignore');
+    if (!fs.existsSync(gitignorePath))
+        return undefined;
+    const rules = fs.readFileSync(gitignorePath, 'utf8')
+        .split('\n')
+        .map(line => line.trimEnd())
+        .flatMap(line => {
+        const negated = line.startsWith('!');
+        const pattern = negated ? line.slice(1) : line;
+        return pattern.startsWith('/content/')
+            ? [{ pattern: pattern.slice(1).replace(/\/$/, ''), negated }]
+            : [];
+    });
+    if (rules.length === 0)
+        return undefined;
+    return source => {
+        const relativeSource = path.relative(projectDir, source).split(path.sep).join('/');
+        let included = true;
+        for (const rule of rules) {
+            if (path.posix.matchesGlob(relativeSource, rule.pattern))
+                included = rule.negated;
+        }
+        return included;
+    };
 }
 function prettifyBundlePath(path: string): string {
     const tokenIndex = path.indexOf('tachyon-bundle');

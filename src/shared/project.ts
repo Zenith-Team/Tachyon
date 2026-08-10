@@ -60,8 +60,10 @@ export class Project {
         const dependencies = lockfile?.ResolvedDependencies;
         if (dependencies)
             for (const [depName, dep] of Object.entries(dependencies)) {
-                this.config.includeDirs.push(...dep.IncludeDirs.map(dir => path.resolve(dir)));
+                this.config.includeDirs.push(...dep.IncludeDirs.map(dir => path.resolve(this.path, dir)));
                 const depInstallPath = path.join(this.path, CommonDirs.Packages, depName);
+                if (!fs.existsSync(depInstallPath))
+                    abort(`Required project dependency ${depName} is not installed, did you forget to run "tachyon pm install"?`);
                 const isLinkedPkg = fs.lstatSync(depInstallPath).isSymbolicLink();
                 const depExportsPath = path.join(depInstallPath, isLinkedPkg ? CommonDirs.Exports : CommonDirs.PkgExports);
                 if (!fs.existsSync(depExportsPath))

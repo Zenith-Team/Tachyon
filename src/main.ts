@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import './sideload.js';
 import $ from 'chalk';
+import fs from 'node:fs';
 import { abort, AbortError } from './utils.js';
 import { checkForUpdate } from './utils/updater.js';
 if (process.versions.bun) {
@@ -17,11 +18,11 @@ if (process.versions.deno) {
         (denoMajor === 2
             && (denoMinor < 9 || (denoMinor === 9 && denoPatch < 0)));
     if (denoIsOutdated) {
-        abort(`Outdated Deno version (${process.versions.deno}) detected. Recommended range: Deno v2.9.0 or higher (<3.x).`);
+        abort(`Outdated Deno version (${process.versions.deno}) detected. Recommended range: ${"Deno v2.9.0 or higher (<3.x)"}.`);
     }
     if (denoMajor > 2) {
         console.warn(`Untested Deno version (${process.versions.deno}) detected, newer than the supported range.\n` +
-            'Recommended range: Deno v2.9.0 or higher (<3.x). Continuing anyway. [experimental]');
+            `Recommended range: ${"Deno v2.9.0 or higher (<3.x)"}. Continuing anyway. [experimental]`);
     }
     else {
         console.warn(`Deno v${denoVerDigits.join('.')} detected. [experimental]`);
@@ -56,6 +57,22 @@ try {
             if (nodeMinor < MIN_MINOR_VER || (nodeMinor === MIN_MINOR_VER && nodePatch < MIN_PATCH_VER)) {
                 abort(`Outdated Node.js version (${process.versions.node}) detected. Recommended range: ${RECOMMENDED_NODE_RANGE}.`);
             }
+        }
+    }
+    if (process.platform === 'win32') {
+        const normalizePath = (p: string) => p.toLowerCase().replaceAll('\\', '/');
+        const cwd = process.cwd();
+        const inOneDrive = normalizePath(cwd).includes('/onedrive')
+            || normalizePath(fs.realpathSync(cwd)).includes('/onedrive')
+            || normalizePath(fs.realpathSync.native(cwd)).includes('/onedrive');
+        const userWantsToMakeBadChoices = process.env.TACHYON_FORCE_UNSUPPORTED_CLOUD_FS !== undefined;
+        if (inOneDrive) {
+            console.error("Tachyon has detected you have ran it inside a OneDrive-enabled folder, this is not supported.\nNetworked filesystems such as OneDrive are extremely slow and do not support basic filesystem features needed for Tachyon to work properly.");
+            if (!userWantsToMakeBadChoices) {
+                abort("Switch directories to a folder outside of OneDrive and try again. (Under a default configuration, that means outside of your C:/Users/* folder)");
+            }
+            else
+                console.error($.bold("Proceeding anyway due to environment setting, this is a very bad idea and your configuration is now unsupported.\nNo issues you run into will be accepted unless reproduced outside a networked filesystem / OneDrive."));
         }
     }
     const args = process.argv.slice(2);

@@ -1,6 +1,6 @@
 import { resolve, type PackageConstraintsTree, type ResolvedPackageVersionsMap } from './resolution.js';
 import type { GitHubRelease } from './github-release.js';
-import { locationType, PkgInstallSourceLocationType } from './pkg-resolver.js';
+import { locationType, normalizeGitHubRepoRef, PkgInstallSourceLocationType } from './pkg-resolver.js';
 import semver from 'semver';
 import type { DirectDependency } from './lockfile.js';
 import { abort } from '../utils.js';
@@ -10,7 +10,7 @@ export async function queryAllGitHubVersions(ghRef: string): Promise<string[]> {
     let page = 1;
     let hasMore = true;
     while (hasMore) {
-        const url = `https://api.github.com/repos/${ghRef}/releases?per_page=100&page=${page}`;
+        const url = `https://api.github.com/repos/${ghRef}/releases?per_page=${100}&page=${page}`;
         const resp = await fetch(url, { signal: AbortSignal.timeout(30000) });
         if (!resp.ok || !resp.body) {
             if (resp.status === 404 && page === 1)
@@ -20,7 +20,10 @@ export async function queryAllGitHubVersions(ghRef: string): Promise<string[]> {
         const data = await resp.json() as GitHubRelease[];
         if (!Array.isArray(data))
             throw new Error(`Unexpected GitHub API response for "${ghRef}"`);
-        const validTags = data.map(r => r.tag_name.replace(/^v/, '')).filter(t => semver.valid(t) !== null);
+        const validTags = data.flatMap(release => {
+            const version = semver.valid(release.tag_name);
+            return version ? [version] : [];
+        });
         releases.push(...validTags);
         hasMore = data.length === 100;
         page++;
@@ -37,6 +40,9 @@ function directDepToResolutionInput(deps: Record<string, DirectDependency>, depC
             depChain.add(depName);
         if (depName in resInput)
             throw new Error('Internal assertion failure [code:DDTRI]');
+        if (semver.validRange(dep.Version) === null) {
+            throw new Error(`Invalid semantic version constraint for package "${depName}": ${dep.Version}`);
+        }
         resInput[depName] = { constraint: dep.Version, deps: {} };
         if (dep.Dependencies) {
             const subDeps = directDepToResolutionInput(dep.Dependencies, depChain);
@@ -73,6 +79,7 @@ export async function buildRegistryFromDirectDeps(directDeps: Record<string, Dir
             if (!dep.Source)
                 continue;
             if ((await locationType(name, dep.Source)) === PkgInstallSourceLocationType.GitHubRepo) {
+                dep.Source = normalizeGitHubRepoRef(dep.Source);
                 githubRepos.set(dep.Source, name);
             }
             if (dep.Dependencies) {

@@ -1,4 +1,7 @@
 import fs, { promises as fsp } from 'node:fs';
+export function toPortablePath(filepath: string): string {
+    return filepath.replaceAll('\\', '/');
+}
 export function isFolderAtSync(dirpath: string): boolean {
     return tryStatSync(dirpath)?.isDirectory() === true;
 }
@@ -25,8 +28,12 @@ export function tryStat(file: string): Promise<fs.Stats | undefined> {
 }
 export function fs_move(src: string, dest: string, force = false) {
     try {
-        if (force && !fs.existsSync(src))
-            return;
+        if (force) {
+            if (!fs.existsSync(src))
+                return;
+            if (fs.existsSync(dest))
+                fs.rmSync(dest, { recursive: true, force: true });
+        }
         try {
             fs.renameSync(src, dest);
         }

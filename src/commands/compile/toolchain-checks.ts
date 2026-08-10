@@ -39,12 +39,11 @@ export function validateCompiler(compilerPathRaw: string | undefined) {
             abort('If you REALLY know what you are doing, at your own risk, you can set the TACHYON_NO_TOOLCHAIN_CHECK=1 environment variable to bypass this. Aborting.');
         }
         console.warn('TACHYON_NO_TOOLCHAIN_CHECK is set, so proceeding anyway... (THIS IS A VERY BAD IDEA!)');
-        console.warn('Note that you are on your own if compilation fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.');
+        console.warn("Note that you are on your own if compilation fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.");
     }
     console.debug('Resolved COMPILER path:', compilerPath);
     return compilerPath;
 }
-type LinkerType = 'ppc-ld' | 'ld.lld' | 'any-ld' | 'any.lld' | null;
 export function validateLinker(linkerPathRaw: string | undefined) {
     if (!linkerPathRaw)
         abort('No linker specified! Please run "tachyon setup" or use the --linker option.');
@@ -59,11 +58,33 @@ export function validateLinker(linkerPathRaw: string | undefined) {
         abort(`Could not find linker "${linkerPath}" in PATH.`);
     }
     const output = (linkerCheck.stdout || linkerCheck.stderr || '').trim().toLowerCase();
-    let detectedLinker: LinkerType = null;
+    let isValidLinker = false;
     if (output.includes('lld')) {
-        detectedLinker = 'any.lld';
         if (output.includes('compatible with gnu')) {
-            detectedLinker = 'ld.lld';
+            const lld_version = /lld (\d+)\.(\d+)\.(\d+)/.exec(output);
+            if (!lld_version) {
+                console.warn('Could not verify your LLD version from this output:\n"' + output + '"');
+                console.warn('This likely signals a wrong LLD variant or extremely old or unseen version.');
+            }
+            else {
+                isValidLinker = true;
+                const [lld_major, lld_minor] = lld_version.slice(1).map(Number) as [
+                    number,
+                    number,
+                    number
+                ];
+                if (lld_major < 21 || (lld_major === 21 && lld_minor < 1)) {
+                    isValidLinker = false;
+                    console.warn(`Linker ${linkerPath} was identified as LLD, but an incorrect (outdated) version.\n` +
+                        'Please update your LLD to version 21.1.x or newer.');
+                    if (process.platform === 'win32') {
+                        console.info('[?] Try running: winget upgrade LLVM.LLVM');
+                    }
+                    else if (process.platform === 'darwin') {
+                        console.info('[?] Try running: brew upgrade lld');
+                    }
+                }
+            }
         }
         else {
             console.warn(`Linker ${linkerPath} was identified as LLD, but an incorrect variant (likely one of: ld64.lld, lld-link, wasm-ld).\n` +
@@ -71,31 +92,17 @@ export function validateLinker(linkerPathRaw: string | undefined) {
         }
     }
     else if (output.includes('ld')) {
-        detectedLinker = 'any-ld';
-        const ldArchCheck = spawnSync(linkerPath, ['--print-output-format'], { encoding: 'utf8' });
-        if (linkerCheck.status !== 0) {
-            console.warn(`Linker "${linkerPath}" failed to report output format. This most likely means it is not a supported ld variant (it may not even be a linker).`);
-        }
-        const ldArchOutput = (ldArchCheck.stdout || ldArchCheck.stderr || '').trim().toLowerCase();
-        if (ldArchOutput.includes('powerpc') || ldArchOutput.includes('ppc')) {
-            detectedLinker = 'ppc-ld';
-        }
-        else {
-            console.warn(`LD linker "${linkerPath}" does not appear to support PowerPC targets.`);
-        }
+        abort(`LD linker "${linkerPath}" is not supported, LLD is required.`);
     }
-    if (detectedLinker === 'any-ld' || detectedLinker === 'any.lld')
-        detectedLinker = null;
-    if (!detectedLinker) {
+    if (!isValidLinker) {
         console.error('Compatibility issues were detected with the linker provided, therefore it is an unsupported configuration.');
         console.error('Linking will almost certainly fail or produce broken output.');
         if (!process.env.TACHYON_NO_TOOLCHAIN_CHECK) {
             abort('If you REALLY know what you are doing, at your own risk, you can set the TACHYON_NO_TOOLCHAIN_CHECK=1 environment variable to bypass this. Aborting.');
         }
         console.warn('TACHYON_NO_TOOLCHAIN_CHECK is set, so proceeding anyway... (THIS IS A VERY BAD IDEA!)');
-        console.warn('Note that you are on your own if linking fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.');
+        console.warn("Note that you are on your own if linking fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.");
     }
-    process.env.TACHYON_LINKER_TYPE = detectedLinker ?? 'ppc-ld';
     console.debug('Resolved LINKER path:', linkerPath);
     return linkerPath;
 }

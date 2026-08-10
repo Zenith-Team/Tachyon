@@ -2,12 +2,12 @@
     <img alt="tachyon5-banner" src="https://github.com/user-attachments/assets/5d221436-3b6f-4fbe-b77b-ec661913d578" />
 </a>
 <div align="center">
-  <img alt="wiiu" height="56" src="https://github.com/user-attachments/assets/fc1f38b1-46a1-44ee-acfb-ac436d900dc6">
+  <img alt="wiiu" height="56" src="https://github.com/user-attachments/assets/c1576bbd-fcc0-4ca9-982f-a6dfe5a8545d">
   <a href="https://go.nsmbu.net/discord">
-    <img alt="discord" height="56" src="https://github.com/user-attachments/assets/495433d7-1ddc-47f1-8c8e-f4ef137754c2">
+    <img alt="discord" height="56" src="https://github.com/user-attachments/assets/785798a3-2702-42be-b960-584b1df86075">
   </a>
   <a href="https://zenith.nsmbu.net/wiki/Tachyon">
-    <img alt="docs" height="56" src="https://github.com/user-attachments/assets/dc583842-a4d3-4635-b036-33d5f9bfc4d5">
+    <img alt="docs" height="56" src="https://github.com/user-attachments/assets/109c6469-e10d-4407-940d-554203452499">
   </a>
 </div>
 

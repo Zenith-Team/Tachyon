@@ -5,12 +5,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import semver from 'semver';
 import { extract as extractZip } from 'zip-lib';
-import { abort, CommonDirs, CommonFiles, fs_move, isSafeFilename, trySymlink, sha256hex, fs_rmrf_unlink, isFolderAt, toPortablePath } from '../utils.js';
+import { abort, CommonDirs, CommonFiles, isSafeFilename, sha256hex, isFolderAt, toPortablePath } from '../utils.js';
 import { AssertField, type ProjectConfigFile } from '../shared/projectconfig.js';
 import { locationType, normalizeGitHubRepoRef, PkgInstallSourceLocationType } from './pkg-resolver.js';
 import { type DirectDependency, type ResolvedDependency, isPinnedVersionConstraint, Lockfile } from './lockfile.js';
 import { reachableNames, downloadAndExtract } from './pkg-updater.js';
 import { buildRegistryFromDirectDeps, resolvePackageVersions } from './pkg-registry.js';
+import { InstallationManifest } from './installation-manifest.js';
 export async function mapConcurrent<T, R>(inputs: T[], fn: (input: T) => Promise<R>, concurrency: number): Promise<R[]> {
     const results: R[] = new Array<R>(inputs.length);
     let nextIndex = 0;
@@ -21,13 +22,36 @@ export async function mapConcurrent<T, R>(inputs: T[], fn: (input: T) => Promise
         }
     }
     const workers = Array.from({ length: Math.min(concurrency, inputs.length) }, () => worker());
-    await Promise.all(workers);
+    const settled = await Promise.allSettled(workers);
+    for (const result of settled) {
+        if (result.status === 'rejected')
+            throw result.reason;
+    }
     return results;
+}
+async function readLockedArchive(name: string, dependency: ResolvedDependency, projectDir: string): Promise<Uint8Array<ArrayBuffer>> {
+    const parsedURL = URL.parse(dependency.Source);
+    let data: Uint8Array<ArrayBuffer>;
+    if (parsedURL?.protocol === 'https:' && parsedURL.hostname === 'github.com') {
+        const req = await fetch(parsedURL, { signal: AbortSignal.timeout(120000) });
+        if (!req.ok || !req.body)
+            abort.thrown(`Failed to fetch remote release for ${name} from: ${dependency.Source} (${req.status} ${req.statusText})`);
+        data = await req.bytes();
+    }
+    else if (path.isAbsolute(dependency.Source) || /^\.\.?[/\\]/.test(dependency.Source)) {
+        data = await fs.readFile(path.resolve(projectDir, dependency.Source));
+    }
+    else {
+        abort.thrown(`Invalid source location for package ${name}: ${dependency.Source}`);
+    }
+    if (sha256hex(data) !== dependency.Hash)
+        abort.thrown(`Integrity hash check failure for dependency ${name}`);
+    return data;
 }
 interface InstallFromTempResult {
     pkgName: string;
 }
-async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, tempDir: string, pkgRef: string, versionConstraint: string, sourceURL: string, hash: string, isDirect: boolean, resolvedVersion?: string): Promise<InstallFromTempResult> {
+async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, tempDir: string, pkgRef: string, versionConstraint: string, sourceURL: string, hash: string, isDirect: boolean, manifest: InstallationManifest, resolvedVersion?: string): Promise<InstallFromTempResult> {
     const isSymlink = hash === '0';
     const sourceDir = path.resolve(tempDir);
     const tpkgConfig = JSON5.parse<ProjectConfigFile>(await fs.readFile(path.join(sourceDir, CommonFiles.Config), 'utf8'));
@@ -60,16 +84,7 @@ async function installPackageFromTemp(lockfile: Lockfile, projectDir: string, te
             `already resolved to ${existing.Current} but ${pkgRef} requires ${resolvedTpkgLock.Current}.\n` +
             '  Run `tachyon update` or adjust your dependency constraints.');
     }
-    if (!isSymlink) {
-        fs_move(sourceDir, tpkgFinalDir, true);
-    }
-    else {
-        await fs_rmrf_unlink(tpkgFinalDir);
-        console.debug('pkg-installer symlink call', tpkgFinalDir, '->', sourceDir);
-        const symlinkOK = trySymlink(tpkgFinalDir, sourceDir);
-        if (!symlinkOK)
-            abort.thrown('Unable to create symlink in your filesystem.');
-    }
+    await manifest.install(tpkgName, resolvedTpkgLock, sourceDir, isSymlink);
     lockfile.ResolvedDependencies[tpkgName] = resolvedTpkgLock;
     let tpkgLockfile: Lockfile | null = null;
     const tpkgLockfilePath = path.join(tpkgFinalDir, CommonFiles.Lockfile);
@@ -118,22 +133,18 @@ async function runTasksWithCleanup(tasks: Array<{
     if (errors.length > 0)
         throw new AggregateError(errors, 'Errors while running tasks');
 }
-function subDepTask(subName: string, subDep: ResolvedDependency, lockfile: Lockfile, packagesDir: string, tempDirs: string[]): {
+function subDepTask(subName: string, subDep: ResolvedDependency, lockfile: Lockfile, packagesDir: string, tempDirs: string[], manifest: InstallationManifest): {
     run: () => Promise<void>;
 } {
     return {
         run: async () => {
             if (subDep.Hash === '0') {
-                if (!await isFolderAt(subDep.Source)) {
+                const sourceDir = path.resolve(path.dirname(path.dirname(packagesDir)), subDep.Source);
+                if (!await isFolderAt(sourceDir)) {
                     abort.thrown(`Sub-dependency "${subName}" has a local symlink source that no longer exists: ${subDep.Source}`);
                 }
-                const sourceDir = path.resolve(subDep.Source);
                 const tpkgDir = path.join(packagesDir, subName);
-                await fs_rmrf_unlink(tpkgDir);
-                console.debug('pkg-installer symlink sub-dep', tpkgDir, '->', sourceDir);
-                const symlinkOK = trySymlink(tpkgDir, sourceDir);
-                if (!symlinkOK)
-                    abort.thrown(`Unable to create symlink for sub-dependency "${subName}"`);
+                await manifest.install(subName, subDep, sourceDir);
                 lockfile.ResolvedDependencies[subName] = subDep;
                 const embeddedLockfilePath = path.join(tpkgDir, CommonFiles.Lockfile);
                 if (existsSync(embeddedLockfilePath)) {
@@ -144,26 +155,14 @@ function subDepTask(subName: string, subDep: ResolvedDependency, lockfile: Lockf
                 }
                 return;
             }
-            const parsedURL = URL.parse(subDep.Source);
-            if (parsedURL?.hostname !== 'github.com')
-                abort.thrown(`Invalid source location for package ${subName}: ${subDep.Source}`);
-            const req = await fetch(parsedURL, { signal: AbortSignal.timeout(120000) });
-            if (!req.ok || !req.body)
-                throw new Error(`Failed to fetch sub-dep "${subName}" from ${subDep.Source}`);
-            const tpkgData = await req.bytes();
-            const hash = sha256hex(tpkgData);
-            if (hash !== subDep.Hash)
-                throw new Error(`Integrity check failed for "${subName}" (expected ${subDep.Hash}, got ${hash})`);
+            const tpkgData = await readLockedArchive(subName, subDep, path.dirname(path.dirname(packagesDir)));
             const tpkgTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tpkg-sub-'));
             tempDirs.push(tpkgTempDir);
             await extractZip(Buffer.from(tpkgData), tpkgTempDir, {
                 overwrite: true, safeSymlinksOnly: true, forceFileMode: 0o644, forceDirMode: 0o755,
             });
             const tpkgUnpackDir = path.join(packagesDir, subName);
-            if (existsSync(tpkgUnpackDir)) {
-                await fs.rm(tpkgUnpackDir, { recursive: true, force: true });
-            }
-            fs_move(tpkgTempDir, tpkgUnpackDir);
+            await manifest.install(subName, subDep, tpkgTempDir);
             lockfile.ResolvedDependencies[subName] = subDep;
             const embeddedLockfilePath = path.join(tpkgUnpackDir, CommonFiles.Lockfile);
             if (existsSync(embeddedLockfilePath)) {
@@ -175,7 +174,7 @@ function subDepTask(subName: string, subDep: ResolvedDependency, lockfile: Lockf
         },
     };
 }
-async function resolveSubDependencies(lockfile: Lockfile, _projectDir: string, packagesDir: string): Promise<void> {
+async function resolveSubDependencies(lockfile: Lockfile, _projectDir: string, packagesDir: string, manifest: InstallationManifest): Promise<void> {
     const lockfiles = Object.entries(lockfile.ResolvedDependencies).map(([depName]) => {
         const pkgDir = path.join(packagesDir, depName);
         if (!existsSync(pkgDir))
@@ -206,15 +205,15 @@ async function resolveSubDependencies(lockfile: Lockfile, _projectDir: string, p
                 continue;
             for (const [subName, subDep] of Object.entries(embeddedLockfile.ResolvedDependencies)) {
                 if (stillNeeded.has(subName) && !lockfile.ResolvedDependencies[subName] && !subDepTaskMap.has(subName)) {
-                    subDepTaskMap.set(subName, subDepTask(subName, subDep, lockfile, packagesDir, tempDirs));
+                    subDepTaskMap.set(subName, subDepTask(subName, subDep, lockfile, packagesDir, tempDirs, manifest));
                 }
             }
         }
         const subDepTasks = [...subDepTaskMap.values()];
         await runTasksWithCleanup(subDepTasks);
         const missingEntries = Object.entries(lockfile.ResolvedDependencies)
-            .filter(([depName]) => stillNeeded.has(depName) && !existsSync(path.join(packagesDir, depName)));
-        const missingTasks = missingEntries.map(([depName, dep]) => subDepTask(depName, dep, lockfile, packagesDir, tempDirs));
+            .filter(([depName, dep]) => stillNeeded.has(depName) && manifest.status(depName, dep));
+        const missingTasks = missingEntries.map(([depName, dep]) => subDepTask(depName, dep, lockfile, packagesDir, tempDirs, manifest));
         await runTasksWithCleanup(missingTasks);
     }
     finally {
@@ -229,32 +228,28 @@ async function resolveSubDependencies(lockfile: Lockfile, _projectDir: string, p
         }
     }
 }
-export async function installAllLockfileDeps(lockfile: Lockfile, projectDir: string) {
+export async function installAllLockfileDeps(lockfile: Lockfile, projectDir: string, manifest = new InstallationManifest(projectDir)) {
     const tempDirs: string[] = [];
     try {
         await mapConcurrent(Object.entries(lockfile.ResolvedDependencies), async ([dependencyName, dependency]) => {
-            const parsedURL = URL.parse(dependency.Source);
-            if (parsedURL?.hostname !== 'github.com')
-                abort.thrown(`Invalid source location for package ${dependencyName}: ${dependency.Source}`);
-            console.info(`⬇︎ Downloading ${dependencyName}@${dependency.Current} ...`);
-            const req = await fetch(parsedURL, { signal: AbortSignal.timeout(120000) });
-            if (!req.ok || !req.body)
-                abort.thrown(`Failed to fetch remote release for ${dependencyName} from: ${dependency.Source} (${req.status} ${req.statusText})`);
-            const tpkgData: Uint8Array<ArrayBuffer> = await req.bytes();
-            const hash = sha256hex(tpkgData);
-            if (hash !== dependency.Hash)
-                abort.thrown(`Integrity hash check failure for dependency ${dependencyName}`);
+            if (!manifest.status(dependencyName, dependency))
+                return;
+            if (dependency.Hash === '0') {
+                const sourceDir = path.resolve(projectDir, dependency.Source);
+                if (!await isFolderAt(sourceDir))
+                    abort.thrown(`Linked package "${dependencyName}" source no longer exists: ${dependency.Source}`);
+                await manifest.install(dependencyName, dependency, sourceDir);
+                return;
+            }
+            console.info(`⬇︎ Installing ${dependencyName}@${dependency.Current} ...`);
+            const tpkgData = await readLockedArchive(dependencyName, dependency, projectDir);
             const tpkgUnpackTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tpkg-inst-'));
             tempDirs.push(tpkgUnpackTempDir);
             await extractZip(Buffer.from(tpkgData), tpkgUnpackTempDir, {
                 overwrite: true, safeSymlinksOnly: true, forceFileMode: 0o644, forceDirMode: 0o755,
             });
-            const tpkgFinalDir = path.join(projectDir, CommonDirs.Packages, dependencyName);
-            if (existsSync(tpkgFinalDir)) {
-                await fs.rm(tpkgFinalDir, { recursive: true, force: true });
-            }
-            fs_move(tpkgUnpackTempDir, tpkgFinalDir);
-            console.success(`✓ Downloaded ${dependencyName}@${dependency.Current}`);
+            await manifest.install(dependencyName, dependency, tpkgUnpackTempDir);
+            console.success(`✓ Installed ${dependencyName}@${dependency.Current}`);
         }, 5);
         console.success('Project dependencies successfully installed.');
     }
@@ -271,6 +266,7 @@ export async function installAllLockfileDeps(lockfile: Lockfile, projectDir: str
     }
 }
 export async function installPackagesWithResolution(lockfile: Lockfile, projectDir: string, packageRefs: string[], pre: boolean = false): Promise<void> {
+    const manifest = new InstallationManifest(projectDir);
     async function packageRefToDep(pkgRef: string): Promise<{
         name: string;
         dep: DirectDependency;
@@ -332,7 +328,7 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
             }
             else if (locType === PkgInstallSourceLocationType.LocalFile) {
                 if (await isFolderAt(dep.Source)) {
-                    packageInfo.set(name, { tempDir: dep.Source, sha256: '0', sourceURL: dep.Source });
+                    packageInfo.set(name, { tempDir: dep.Source, sha256: '0', sourceURL: path.resolve(dep.Source) });
                 }
                 else {
                     const pkgData = await fs.readFile(dep.Source);
@@ -342,7 +338,7 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
                     await extractZip(Buffer.from(pkgData), tempDir, {
                         overwrite: true, safeSymlinksOnly: true, forceFileMode: 0o644, forceDirMode: 0o755,
                     });
-                    packageInfo.set(name, { tempDir, sha256: hash, sourceURL: dep.Source });
+                    packageInfo.set(name, { tempDir, sha256: hash, sourceURL: path.resolve(dep.Source) });
                 }
             }
             else {
@@ -366,10 +362,10 @@ export async function installPackagesWithResolution(lockfile: Lockfile, projectD
         }
         for (const [name, info] of packageInfo) {
             const dependency = newDeps[name]!;
-            await installPackageFromTemp(lockfile, projectDir, info.tempDir, dependency.Source, dependency.Version, info.sourceURL, info.sha256, true, info.resolvedVersion);
+            await installPackageFromTemp(lockfile, projectDir, info.tempDir, dependency.Source, dependency.Version, info.sourceURL, info.sha256, true, manifest, info.resolvedVersion);
         }
         const packagesDir = path.join(projectDir, CommonDirs.Packages);
-        await resolveSubDependencies(lockfile, projectDir, packagesDir);
+        await resolveSubDependencies(lockfile, projectDir, packagesDir, manifest);
         lockfile.save();
         console.success(`Installed ${Object.keys(newDeps).join(', ')}`);
     }

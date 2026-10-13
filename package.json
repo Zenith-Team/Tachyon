@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "name": "tachyon",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "main": "dist/main.js",
   "bin": {
     "tachyon": "dist/main.js"
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "chalk": "^6.0.0",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.5",
     "env-paths": "^4.0.0",
     "json5": "^2.2.3",
     "rpxlib": "^0.9.1",
@@ -27,11 +27,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.4",
+    "@types/node": "^24.19.1",
     "@types/semver": "^7.7.1",
     "@types/which": "^3.0.4",
     "eslint": "^10.6.0",
-    "eslint-plugin-unicorn": "^72.0.0",
+    "eslint-plugin-unicorn": "^76.0.0",
     "globals": "^17.7.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1"

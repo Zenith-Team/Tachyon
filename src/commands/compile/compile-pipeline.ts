@@ -305,7 +305,8 @@ function convHooks(elf: RPL, convMap: ConvMap, consoleTarget: boolean): void {
     const view = new DataView(loaderdata.buffer, loaderdata.byteOffset, loaderdata.byteLength);
     for (let i = 0; i < loaderdata.byteLength; i += 0x20) {
         const addr = view.getUint32(i + 0x4);
-        const convertedAddr = convMap.convert(addr, consoleTarget ? ConvPlatform.CONSOLE : ConvPlatform.EMULATOR);
+        const pin = view.getUint32(i + 0x10);
+        const convertedAddr = convMap.convert(addr, consoleTarget ? ConvPlatform.CONSOLE : ConvPlatform.EMULATOR, pin === 0);
         view.setUint32(i + 0x4, convertedAddr);
     }
 }

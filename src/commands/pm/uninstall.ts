@@ -3,9 +3,10 @@ import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import util from 'node:util';
 import path from 'node:path';
-import { abort, CommonDirs, CommonFiles, fs_rmrf_unlink, validateProjectFolder } from '../../utils.js';
+import { abort, CommonDirs, CommonFiles, validateProjectFolder } from '../../utils.js';
 import { Lockfile } from '../../pkgmgr/lockfile.js';
 import { reachableNames } from '../../pkgmgr/pkg-updater.js';
+import { InstallationManifest } from '../../pkgmgr/installation-manifest.js';
 export async function cli_handler(args: string[]): Promise<void> {
     const { positionals: packages, } = util.parseArgs({
         args,
@@ -35,9 +36,9 @@ export async function cli_handler(args: string[]): Promise<void> {
     const stillNeeded = reachableNames(lockfile.DirectDependencies);
     const orphans = Object.keys(lockfile.ResolvedDependencies).filter(n => !stillNeeded.has(n));
     if (orphans.length > 0) {
+        const manifest = new InstallationManifest(projectDir);
         for (const orphan of orphans) {
-            const packageDir = path.join(projectDir, CommonDirs.Packages, orphan);
-            await fs_rmrf_unlink(packageDir);
+            await manifest.uninstall(orphan);
             Reflect.deleteProperty(lockfile.ResolvedDependencies, orphan);
             console.success(`✓ Uninstalled package ${$.yellow(orphan)}`);
         }

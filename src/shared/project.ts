@@ -5,6 +5,7 @@ import path from 'node:path';
 import { loadProjectConfig, type ProjectConfig } from './projectconfig.js';
 import { abort, TitleID, CommonDirs, CommonFiles, hex, randomShortUUID } from '../utils.js';
 import { Lockfile } from '../pkgmgr/lockfile.js';
+import { InstallationManifest } from '../pkgmgr/installation-manifest.js';
 import { SymbolMap } from './symbolmap.js';
 export const CPP_EXTS: readonly string[] = ['.c', '.cpp', '.cxx', '.c++', '.cc'];
 export const ASM_EXTS: readonly string[] = ['.s', '.asm', '.ppc'];
@@ -50,6 +51,7 @@ export class Project {
         const lockfilePath = path.join(projectDir, CommonFiles.Lockfile);
         if (fs.existsSync(lockfilePath)) {
             lockfile = Lockfile.load(lockfilePath);
+            new InstallationManifest(projectDir).assertInstalled(lockfile);
         }
         const directDeps = lockfile?.DirectDependencies;
         if (directDeps) {
@@ -62,9 +64,7 @@ export class Project {
             for (const [depName, dep] of Object.entries(dependencies)) {
                 this.config.includeDirs.push(...dep.IncludeDirs.map(dir => path.resolve(this.path, dir)));
                 const depInstallPath = path.join(this.path, CommonDirs.Packages, depName);
-                if (!fs.existsSync(depInstallPath))
-                    abort(`Required project dependency ${depName} is not installed, did you forget to run "tachyon pm install"?`);
-                const isLinkedPkg = fs.lstatSync(depInstallPath).isSymbolicLink();
+                const isLinkedPkg = dep.Hash === '0';
                 const depExportsPath = path.join(depInstallPath, isLinkedPkg ? CommonDirs.Exports : CommonDirs.PkgExports);
                 if (!fs.existsSync(depExportsPath))
                     abort(`Dependency ${depName} has no exports folder.`);

@@ -10,7 +10,7 @@ export async function queryAllGitHubVersions(ghRef: string): Promise<string[]> {
     let page = 1;
     let hasMore = true;
     while (hasMore) {
-        const url = `https://api.github.com/repos/${ghRef}/releases?per_page=${100}&page=${page}`;
+        const url = `https://api.github.com/repos/${ghRef}/releases?per_page=100&page=${page}`;
         const resp = await fetch(url, { signal: AbortSignal.timeout(30000) });
         if (!resp.ok || !resp.body) {
             if (resp.status === 404 && page === 1)

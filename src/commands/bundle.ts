@@ -3,22 +3,33 @@ import fs from 'node:fs';
 import os from 'node:os';
 import util from 'node:util';
 import path from 'node:path';
-import { abort, CommonDirs, findFileConflicts, getAllTargets, hex, TitleID, validateProjectFolder } from '../utils.js';
+import { abort, CommonDirs, CommonFiles, findFileConflicts, getAllTargets, hex, TitleID, validateProjectFolder } from '../utils.js';
 import { configureTarget, loadProjectConfig, type ProjectConfig } from '../shared/projectconfig.js';
 import { archiveFolder } from 'zip-lib';
+import { Lockfile } from '../pkgmgr/lockfile.js';
+import { InstallationManifest } from '../pkgmgr/installation-manifest.js';
+import { checkSymlinkDependencies } from '../pkgmgr/symlink-deps.js';
 export async function cli_handler(args: string[]): Promise<void> {
-    const { positionals: targetsOverride, } = util.parseArgs({
+    const { positionals: targetsOverride, values: { 'allow-symlink-deps': allowSymlinkDeps }, } = util.parseArgs({
         args,
         allowPositionals: true,
-        options: {}
+        options: {
+            'allow-symlink-deps': { type: 'boolean', default: false },
+        }
     });
-    return await bundleProject(targetsOverride, false);
+    return await bundleProject(targetsOverride, false, allowSymlinkDeps);
 }
-export async function bundleProject(targetsOverride: string[] = [], forLaunch: boolean): Promise<void> {
+export async function bundleProject(targetsOverride: string[] = [], forLaunch: boolean, allowSymlinkDeps: boolean = false): Promise<void> {
     const projectDir = validateProjectFolder();
+    if (!forLaunch)
+        checkSymlinkDependencies(projectDir, 'bundle', allowSymlinkDeps);
     const config = loadProjectConfig(projectDir);
     if (config.type === 'Special')
         abort('Cannot bundle Special module.');
+    const lockfilePath = path.join(projectDir, CommonFiles.Lockfile);
+    const lockfile = fs.existsSync(lockfilePath) ? Lockfile.load(lockfilePath) : undefined;
+    if (lockfile)
+        new InstallationManifest(projectDir).assertInstalled(lockfile);
     const bundleTmpDir = forLaunch
         ? path.join(projectDir, CommonDirs.BundleOutputPath)
         : fs.mkdtempSync(path.join(os.tmpdir(), 'tachyon-bundle'));
@@ -49,10 +60,12 @@ export async function bundleProject(targetsOverride: string[] = [], forLaunch: b
     const DEPS_RPL_MAP = new Map<bigint, RPLInfo[]>();
     const packagesDir = path.join(projectDir, CommonDirs.Packages);
     fs.mkdirSync(packagesDir, { recursive: true });
-    const depDirs = fs.readdirSync(packagesDir);
+    const depDirs = lockfile ? Object.keys(lockfile.ResolvedDependencies) : fs.readdirSync(packagesDir);
     for (const depName of depDirs) {
         const depDir = path.join(packagesDir, depName);
         const outDir = path.join(depDir, CommonDirs.DefaultOutputPath);
+        if (!fs.statSync(depDir).isDirectory())
+            continue;
         const depProjDir = validateProjectFolder(depDir);
         const depConfig = loadProjectConfig(depProjDir);
         const depAllTargets = getAllTargets(depConfig);
@@ -201,12 +214,12 @@ function createOwnContentFilter(projectDir: string): ((source: string) => boolea
         .split('\n')
         .map(line => line.trimEnd())
         .flatMap(line => {
-        const negated = line.startsWith('!');
-        const pattern = negated ? line.slice(1) : line;
-        return pattern.startsWith('/content/')
-            ? [{ pattern: pattern.slice(1).replace(/\/$/, ''), negated }]
-            : [];
-    });
+            const negated = line.startsWith('!');
+            const pattern = negated ? line.slice(1) : line;
+            return pattern.startsWith('/content/')
+                ? [{ pattern: pattern.slice(1).replace(/\/$/, ''), negated }]
+                : [];
+        });
     if (rules.length === 0)
         return undefined;
     return source => {

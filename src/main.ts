@@ -8,26 +8,6 @@ if (process.versions.bun) {
     Reflect.set(process.env, 'TACHYON_NO_RUNTIME_CHECK', '1');
     console.error('Bun detected. [UNSUPPORTED]');
 }
-if (process.versions.deno) {
-    Reflect.set(process.env, 'TACHYON_NO_RUNTIME_CHECK', '1');
-    const denoVerDigits = (process.versions.deno.split('-')[0] ?? '0.0.0').split('.');
-    const denoMajor = Number(denoVerDigits[0]) || 0;
-    const denoMinor = Number(denoVerDigits[1]) || 0;
-    const denoPatch = Number(denoVerDigits[2]) || 0;
-    const denoIsOutdated = denoMajor < 2 ||
-        (denoMajor === 2
-            && (denoMinor < 9 || (denoMinor === 9 && denoPatch < 0)));
-    if (denoIsOutdated) {
-        abort(`Outdated Deno version (${process.versions.deno}) detected. Recommended range: ${"Deno v2.9.0 or higher (<3.x)"}.`);
-    }
-    if (denoMajor > 2) {
-        console.warn(`Untested Deno version (${process.versions.deno}) detected, newer than the supported range.\n` +
-            `Recommended range: ${"Deno v2.9.0 or higher (<3.x)"}. Continuing anyway. [experimental]`);
-    }
-    else {
-        console.warn(`Deno v${denoVerDigits.join('.')} detected. [experimental]`);
-    }
-}
 try {
     if (!process.env.TACHYON_NO_RUNTIME_CHECK) {
         const SUPPORTED_NODE_MAJOR_VERS = [24, 25, 26] as const;
@@ -67,12 +47,12 @@ try {
             || normalizePath(fs.realpathSync.native(cwd)).includes('/onedrive');
         const userWantsToMakeBadChoices = process.env.TACHYON_FORCE_UNSUPPORTED_CLOUD_FS !== undefined;
         if (inOneDrive) {
-            console.error("Tachyon has detected you have ran it inside a OneDrive-enabled folder, this is not supported.\nNetworked filesystems such as OneDrive are extremely slow and do not support basic filesystem features needed for Tachyon to work properly.");
+            console.error('Tachyon has detected you have ran it inside a OneDrive-enabled folder, this is not supported.\nNetworked filesystems such as OneDrive are extremely slow and do not support basic filesystem features needed for Tachyon to work properly.');
             if (!userWantsToMakeBadChoices) {
-                abort("Switch directories to a folder outside of OneDrive and try again. (Under a default configuration, that means outside of your C:/Users/* folder)");
+                abort('Switch directories to a folder outside of OneDrive and try again. (Under a default configuration, that means outside of your C:/Users/* folder)');
             }
             else
-                console.error($.bold("Proceeding anyway due to environment setting, this is a very bad idea and your configuration is now unsupported.\nNo issues you run into will be accepted unless reproduced outside a networked filesystem / OneDrive."));
+                console.error($.bold('Proceeding anyway due to environment setting, this is a very bad idea and your configuration is now unsupported.\nNo issues you run into will be accepted unless reproduced outside a networked filesystem / OneDrive.'));
         }
     }
     const args = process.argv.slice(2);
@@ -97,6 +77,9 @@ try {
             break;
         case 'launch':
             command = await import('./commands/launch/cli-handler.js');
+            break;
+        case 'warp':
+            command = await import('./commands/warp.js');
             break;
         case 'clean':
             command = await import('./commands/clean.js');

@@ -23,8 +23,6 @@ export async function cli_handler(args: string[]): Promise<void> {
     });
     const projectDir = validateProjectFolder();
     const config = loadProjectConfig(projectDir);
-    if (config.type === 'Special')
-        abort('Cannot launch Special module.');
     if (config.freestanding)
         abort('Cannot launch freestanding module.');
     if (interpreter && mcInterpreter)
@@ -100,6 +98,7 @@ function resolveLogConfig(allow: string[], block: string[]): LogConfig {
             asserts: false,
             osprefix: false,
             shader_errors: false,
+            vulkan_cache: false,
             osconsole: true,
             rplloader: true,
             crashlog: true,

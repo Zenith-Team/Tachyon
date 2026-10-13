@@ -6,7 +6,8 @@ import { CommonFiles, validateProjectFolder } from '../../utils.js';
 import { Lockfile } from '../../pkgmgr/lockfile.js';
 import { reachableNames } from '../../pkgmgr/pkg-updater.js';
 import type { DirectDependency, ResolvedDependency } from '../../pkgmgr/lockfile.js';
-function printTree(deps: Record<string, DirectDependency>, resolved: Record<string, ResolvedDependency>, prefix: string): void {
+import { InstallationManifest } from '../../pkgmgr/installation-manifest.js';
+function printTree(deps: Record<string, DirectDependency>, resolved: Record<string, ResolvedDependency>, prefix: string, statuses: Map<string, string | undefined>): void {
     const entries = Object.entries(deps);
     const total = entries.length;
     for (const [i, [name, dep]] of entries.entries()) {
@@ -14,12 +15,14 @@ function printTree(deps: Record<string, DirectDependency>, resolved: Record<stri
         const connector = $.gray(isLast ? '└──' : '├──');
         const version = resolved[name]?.Current ?? '?';
         const depColored = $.reset(name);
-        console.info(prefix + connector + ' ' + depColored + $.gray('@') + $.green(version));
+        const status = statuses.get(name);
+        console.info(prefix + connector + ' ' + depColored + $.gray('@') + $.green(version)
+            + (status ? $.yellow(` (required, ${status})`) : ''));
         if (dep.Dependencies) {
             const subEntries = Object.entries(dep.Dependencies);
             if (subEntries.length > 0) {
                 const childPrefix = prefix + (isLast ? '    ' : '│   ');
-                printTree(dep.Dependencies, resolved, childPrefix);
+                printTree(dep.Dependencies, resolved, childPrefix, statuses);
             }
         }
     }
@@ -38,12 +41,14 @@ export function cli_handler(args: string[]): void {
     const lockfile = Lockfile.load(lockfilePath);
     const directDeps = lockfile.DirectDependencies;
     const resolvedDeps = lockfile.ResolvedDependencies;
+    const manifest = new InstallationManifest(projectDir);
+    const statuses = new Map(Object.entries(resolvedDeps).map(([name, dep]) => [name, manifest.status(name, dep)]));
     const directCount = Object.keys(directDeps).length;
     const totalCount = Object.keys(resolvedDeps).length;
     console.info('Listing dependencies in ' + $.cyan(lockfilePath) +
         $.reset(` (${directCount} direct, ${totalCount} resolved)`));
     if (directCount > 0) {
-        printTree(directDeps, resolvedDeps, '');
+        printTree(directDeps, resolvedDeps, '', statuses);
     }
     const stillNeeded = reachableNames(directDeps);
     const orphans = Object.keys(resolvedDeps).filter(name => !stillNeeded.has(name));
@@ -54,7 +59,9 @@ export function cli_handler(args: string[]): void {
         for (const [i, name] of orphans.entries()) {
             const isLast = i === totalOrphans - 1;
             const connector = $.gray(isLast ? '└──' : '├──');
-            console.info('  ' + connector + ' ' + $.white(name) + $.gray('@') + $.green(resolvedDeps[name]!.Current));
+            const status = statuses.get(name);
+            console.info('  ' + connector + ' ' + $.white(name) + $.gray('@') + $.green(resolvedDeps[name]!.Current)
+                + (status ? $.yellow(` (required, ${status})`) : ''));
         }
     }
 }

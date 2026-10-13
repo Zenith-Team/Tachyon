@@ -16,7 +16,7 @@ function lld_demangle(mangled: string) {
         }
         else {
             DEMANGLER_BIN = null;
-            console.warn("(lldpretty) Could not find a suitable demangler in your system.\nIf you have one in a non-standard location, please provide it's path on the TACHYON_DEMANGLER env. variable.");
+            console.warn('(lldpretty) Could not find a suitable demangler in your system.\nIf you have one in a non-standard location, please provide it\'s path on the TACHYON_DEMANGLER env. variable.');
             return mangled;
         }
     }
@@ -44,17 +44,17 @@ function findDemangler() {
     if (process.env.TACHYON_DEMANGLER)
         candidates.unshift(process.env.TACHYON_DEMANGLER);
     for (const cppfilt of candidates) {
-        const proc = spawnSync(cppfilt, ["_Z1fv"], { encoding: 'utf8' });
+        const proc = spawnSync(cppfilt, ['_Z1fv'], { encoding: 'utf8' });
         if (proc.status !== 0 || proc.signal || proc.error || proc.stderr)
             continue;
         const demangled = proc.stdout.trim();
-        if (demangled === "f()")
+        if (demangled === 'f()')
             return { cppfilt, flags: [] };
-        const proc_n = spawnSync(cppfilt, ['-n', "_Z1fv"], { encoding: 'utf8' });
+        const proc_n = spawnSync(cppfilt, ['-n', '_Z1fv'], { encoding: 'utf8' });
         if (proc_n.status !== 0 || proc_n.signal || proc_n.error || proc_n.stderr)
             continue;
         const demangled_n = proc_n.stdout.trim();
-        if (demangled_n === "f()")
+        if (demangled_n === 'f()')
             return { cppfilt, flags: ['-n'] };
     }
     return null;

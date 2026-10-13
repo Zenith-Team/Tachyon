@@ -48,7 +48,7 @@ ${H('Valid commands')}
     ${c('pm')}                      Manage packages and dependencies. See subcommands for more information.
         ${c('pm install')}          Install this project's dependencies or add new packages.
         ${c('pm link')}             Install a local package by symlinking it into the project.
-        ${c('pm list')}             List all installed packages.
+        ${c('pm list')}             List dependencies and their local installation status.
         ${c('pm uninstall')}        Uninstall a package.
         ${c('pm update')}           Update one or all packages to their latest versions.
 
@@ -67,9 +67,17 @@ ${c('compile')} ${y('<targets...>')}
     (x = no compression, d = default compression)
     ${b('--no-cache')}                   Clear the compilation cache before compiling.
     ${b('--package')}                    Generate a distributable Tachyon dependency package file after compiling.
+    ${b('--allow-symlink-deps')}         Warn instead of rejecting linked dependencies when generating a package.
     ${b('--compiledb')}                  Generate a compilation database (compile_commands.json) for the project.
     ${b('--console')}                    Build both the emulator and console variants of this target.
     ${b('--console-only')}               Build only the console variant of this target.
+    ${b('--launch')}                     Launch the game if compilation succeeds.
+
+${c('package')} ${y('[targets...]')}
+    Accepts compile options. Linked dependencies are rejected unless ${b('--allow-symlink-deps')} is provided.
+
+${c('bundle')} ${y('[targets...]')}
+    ${b('--allow-symlink-deps')}         Warn instead of rejecting linked dependencies when bundling.
 
 ${c('launch')} ${y('<target_name>')}
     ${b('-c')}${C} ${b('--cemu')} ${g('<path>')}            Path to Cemu installation folder. ${d('(default: CEMU_BIN env. variable)')}

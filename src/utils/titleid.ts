@@ -16,19 +16,20 @@ export class TitleID extends null {
         const upperHalf = Number(TitleID.removeConsoleTag(titleID) >> 32n);
         if (!TitleID.Type[upperHalf])
             return null;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment
         return upperHalf;
     }
     static stripSubtype(titleid: bigint) {
-        return titleid & 0xffffff00ffffffffn;
+        return titleid & 0xFFFFFF00FFFFFFFFn;
     }
     static addConsoleTag(titleid: bigint) {
-        return titleid | 0xc000000000000000n;
+        return titleid | 0xC000000000000000n;
     }
     static removeConsoleTag(titleid: bigint) {
-        return titleid & ~0xc000000000000000n;
+        return titleid & ~0xC000000000000000n;
     }
     static isConsoleTagged(titleid: bigint): boolean {
-        return (titleid & 0xc000000000000000n) !== 0n;
+        return (titleid & 0xC000000000000000n) !== 0n;
     }
     static DUMMY_TEXT = '00050000-00000000';
     static DUMMY_ID = 0x0005000000000000n;

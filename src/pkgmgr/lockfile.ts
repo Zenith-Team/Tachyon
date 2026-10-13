@@ -67,7 +67,7 @@ function validateDependencyVersions(directDependencies: Record<string, DirectDep
     }
 }
 export class Lockfile implements ILockfile {
-    private constructor(private readonly filepath: string, public WURPLSLockfileVersion: string, public DirectDependencies: Record<string, DirectDependency>, public ResolvedDependencies: Record<string, ResolvedDependency>) { }
+    private constructor(private readonly filepath: string, public WURPLSLockfileVersion: string, public DirectDependencies: Record<string, DirectDependency>, public ResolvedDependencies: Record<string, ResolvedDependency>) {}
     static load(lockfilePath: string): Lockfile {
         let lockfile: ILockfile;
         try {
@@ -101,9 +101,9 @@ export class Lockfile implements ILockfile {
                 WURPLSLockfileVersion: this.WURPLSLockfileVersion,
                 DirectDependencies: this.DirectDependencies,
                 ResolvedDependencies: Object.fromEntries(Object.entries(this.ResolvedDependencies).map(([name, dependency]) => [name, {
-                        ...dependency,
-                        IncludeDirs: dependency.IncludeDirs.map(toPortablePath),
-                    }])),
+                    ...dependency,
+                    IncludeDirs: dependency.IncludeDirs.map(toPortablePath),
+                }])),
             }, null, 2));
             fs.renameSync(tmpPath, this.filepath);
         }

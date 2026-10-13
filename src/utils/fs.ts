@@ -104,6 +104,7 @@ export enum CommonDirs {
 export enum CommonFiles {
     Config = 'project.json5',
     Lockfile = 'project-deps.json',
+    LocalPackagesLock = 'packages.lock',
     LinkerDirective = 'project.ld',
     ProjectCache = '.project-cache',
     MainSymbolMap = 'syms.map',

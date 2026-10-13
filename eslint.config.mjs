@@ -88,6 +88,7 @@ export default defineConfig(
                 'prefer-string-starts-ends-with': ['error', { allowSingleElementEquality: 'always' }],
                 'array-type': 'off',
                 'no-deprecated': 'error',
+                'no-meaningless-void-operator': 'off',
                 'no-unused-expressions': ['error', { allowShortCircuit: true, allowTernary: true }],
                 'no-unnecessary-condition': ['error', { allowConstantLoopConditions: 'only-allowed-literals' }],
                 'use-unknown-in-catch-callback-variable': 'off',

@@ -67,13 +67,14 @@ export class ConvMap {
             abort(`Invalid or missing conversion map: ${convFilePath}`);
         }
     }
-    public convert(address: u32, platform: ConvPlatform): u32 {
+    public convert(address: u32, platform: ConvPlatform, applyGlobalOffsets: boolean = true): u32 {
         let convertedAddr: u32 = address;
-        for (const offset of this.#offsetsMap.get(ConvPlatform.GLOBAL)!) {
-            if (address >= offset.from && address < offset.until) {
-                convertedAddr += offset.value;
+        if (applyGlobalOffsets)
+            for (const offset of this.#offsetsMap.get(ConvPlatform.GLOBAL)!) {
+                if (address >= offset.from && address < offset.until) {
+                    convertedAddr += offset.value;
+                }
             }
-        }
         if (platform)
             for (const offset of this.#offsetsMap.get(platform)!) {
                 if (address >= offset.from && address < offset.until) {

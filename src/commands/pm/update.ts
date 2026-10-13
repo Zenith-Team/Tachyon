@@ -16,7 +16,7 @@ export async function cli_handler(args: string[]): Promise<void> {
     const projectDir = validateProjectFolder();
     const lockfilePath = path.join(projectDir, CommonFiles.Lockfile);
     if (!existsSync(lockfilePath)) {
-        abort.thrown('No lockfile found. Run `tachyon install` first to populate it.');
+        abort.thrown('No lockfile found. Run `tachyon pm install` first to populate it.');
     }
     await fs.mkdir(path.join(projectDir, CommonDirs.Packages), { recursive: true });
     const lockfile = Lockfile.load(lockfilePath);

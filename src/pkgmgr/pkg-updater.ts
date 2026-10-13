@@ -5,12 +5,13 @@ import path from 'node:path';
 import semver from 'semver';
 import JSON5 from 'json5';
 import { extract as extractZip } from 'zip-lib';
-import { abort, CommonDirs, CommonFiles, sha256hex, fs_move, isSafeFilename, fs_rmrf_unlink, toPortablePath } from '../utils.js';
+import { abort, CommonDirs, CommonFiles, sha256hex, isSafeFilename, toPortablePath } from '../utils.js';
 import { type DirectDependency, type ResolvedDependency, isPinnedVersionConstraint, Lockfile } from './lockfile.js';
 import { githubRepoFromReleaseURL, isGitHubRepoRef, locationType, normalizeGitHubReleaseURL, normalizeGitHubRepoRef, PkgInstallSourceLocationType, } from './pkg-resolver.js';
 import { buildRegistryFromDirectDeps, resolvePackageVersions } from './pkg-registry.js';
-import { mapConcurrent } from './pkg-installer.js';
+import { installAllLockfileDeps, mapConcurrent } from './pkg-installer.js';
 import { AssertField, type ProjectConfigFile } from '../shared/projectconfig.js';
+import { InstallationManifest } from './installation-manifest.js';
 export async function downloadAndExtract(url: string): Promise<{
     tempDir: string;
     sha256: string;
@@ -79,7 +80,7 @@ interface PlannedUpdate {
 export async function updatePackagesWithResolution(lockfile: Lockfile, projectDir: string, packageNames: string[] = [], pre: boolean = false): Promise<void> {
     if (packageNames.length === 0 && Object.keys(lockfile.DirectDependencies).length === 0) {
         console.info('No direct dependencies to update.');
-        return;
+        return installAllLockfileDeps(lockfile, projectDir);
     }
     const targets = packageNames.length > 0 ? packageNames : Object.keys(lockfile.DirectDependencies);
     const filteredDirectDeps: Record<string, DirectDependency> = {};
@@ -112,7 +113,7 @@ export async function updatePackagesWithResolution(lockfile: Lockfile, projectDi
     const updateTargets = Object.keys(filteredDirectDeps);
     if (updateTargets.length === 0) {
         console.info('No GitHub-hosted direct dependencies to update.');
-        return;
+        return installAllLockfileDeps(lockfile, projectDir);
     }
     const registry = await buildRegistryFromDirectDeps(filteredDirectDeps);
     const resolved = await resolvePackageVersions(filteredDirectDeps, registry, pre);
@@ -142,6 +143,7 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
     }
     const packagesDir = path.join(projectDir, CommonDirs.Packages);
     await fs.mkdir(packagesDir, { recursive: true });
+    const manifest = new InstallationManifest(projectDir);
     const tempDirs: string[] = [];
     try {
         const plan: PlannedUpdate[] = [];
@@ -166,7 +168,7 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
             }
             const currentVersion = lockfile.ResolvedDependencies[pkgName]?.Current ?? '0.0.0';
             if (resolvedVersion === currentVersion) {
-                console.info(`  ${pkgName}@${currentVersion} ✓ already at latest compatible version`);
+                console.info(`  ${pkgName}@${currentVersion} ✓ locked to the latest compatible version`);
                 continue;
             }
             console.info(`  ${pkgName}: ${currentVersion} -> ${resolvedVersion}  (downloading...)`);
@@ -224,6 +226,7 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
             };
         }
         if (plan.length === 0) {
+            await installAllLockfileDeps(lockfile, projectDir, manifest);
             lockfile.DirectDependencies = updatedDirectDeps;
             lockfile.save();
             console.success('All specified packages are up to date.');
@@ -254,22 +257,21 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
         }
         const updatedResolvedDeps: Record<string, ResolvedDependency> = { ...lockfile.ResolvedDependencies };
         for (const entry of plan) {
-            const finalDir = path.join(packagesDir, entry.pkgName);
             console.info(`  installing ${entry.pkgName}@${entry.newVersion}`);
-            await fs_rmrf_unlink(finalDir);
-            fs_move(entry.tempDir, finalDir);
-            updatedResolvedDeps[entry.pkgName] = {
+            const dependency: ResolvedDependency = {
                 Current: entry.newVersion,
                 Source: entry.sourceURL,
                 Hash: entry.sha256,
                 IncludeDirs: (entry.newConfig.IncludeDirs ?? []).map(dir => toPortablePath(path.relative(projectDir, path.join(packagesDir, entry.pkgName, dir)))),
             };
+            await manifest.install(entry.pkgName, dependency, entry.tempDir);
+            updatedResolvedDeps[entry.pkgName] = dependency;
         }
         const subDepUpdates = new Map<string, ResolvedDependency>();
         for (const entry of plan) {
             for (const [subName, subDep] of Object.entries(entry.newSubResolved)) {
                 const current = lockfile.ResolvedDependencies[subName];
-                if (current?.Current !== subDep.Current) {
+                if (current?.Current !== subDep.Current || current.Hash !== subDep.Hash || current.Source !== subDep.Source) {
                     const queued = subDepUpdates.get(subName);
                     if (!queued || semver.gt(subDep.Current, queued.Current)) {
                         subDepUpdates.set(subName, subDep);
@@ -281,6 +283,8 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
         const transitiveResults = await mapConcurrent(transitiveEntries, async ([subName, subDep]) => {
             const fromVer = lockfile.ResolvedDependencies[subName]?.Current ?? 'none';
             console.info(`  transitive: ${subName}  ${fromVer} -> ${subDep.Current}`);
+            if (subDep.Hash === '0')
+                return { [subName]: subDep };
             const { tempDir, sha256 } = await downloadAndExtract(subDep.Source);
             tempDirs.push(tempDir);
             if (sha256 !== subDep.Hash) {
@@ -296,9 +300,7 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
                 abort.thrown(`Version mismatch for package "${subName}": resolved release ${subDep.Current} ` +
                     `but package config declares ${subConfig.Version}.`);
             }
-            const finalDir = path.join(packagesDir, subName);
-            await fs_rmrf_unlink(finalDir);
-            fs_move(tempDir, finalDir);
+            await manifest.install(subName, subDep, tempDir);
             return {
                 [subName]: {
                     ...subDep,
@@ -314,12 +316,13 @@ export async function updateDepsWithResolved(lockfile: Lockfile, projectDir: str
         if (orphans.length > 0) {
             console.info(`  removing ${orphans.length} orphaned package(s): ${orphans.join(', ')}`);
             for (const orphan of orphans) {
-                await fs_rmrf_unlink(path.join(packagesDir, orphan));
+                await manifest.uninstall(orphan);
                 Reflect.deleteProperty(updatedResolvedDeps, orphan);
             }
         }
         lockfile.DirectDependencies = updatedDirectDeps;
         lockfile.ResolvedDependencies = updatedResolvedDeps;
+        await installAllLockfileDeps(lockfile, projectDir, manifest);
         lockfile.save();
         const summary = plan.map(e => `${e.pkgName} (${e.oldVersion} -> ${e.newVersion})`).join(', ');
         console.success(`Updated: ${summary}`);

@@ -39,7 +39,7 @@ export function validateCompiler(compilerPathRaw: string | undefined) {
             abort('If you REALLY know what you are doing, at your own risk, you can set the TACHYON_NO_TOOLCHAIN_CHECK=1 environment variable to bypass this. Aborting.');
         }
         console.warn('TACHYON_NO_TOOLCHAIN_CHECK is set, so proceeding anyway... (THIS IS A VERY BAD IDEA!)');
-        console.warn("Note that you are on your own if compilation fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.");
+        console.warn('Note that you are on your own if compilation fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.');
     }
     console.debug('Resolved COMPILER path:', compilerPath);
     return compilerPath;
@@ -101,7 +101,7 @@ export function validateLinker(linkerPathRaw: string | undefined) {
             abort('If you REALLY know what you are doing, at your own risk, you can set the TACHYON_NO_TOOLCHAIN_CHECK=1 environment variable to bypass this. Aborting.');
         }
         console.warn('TACHYON_NO_TOOLCHAIN_CHECK is set, so proceeding anyway... (THIS IS A VERY BAD IDEA!)');
-        console.warn("Note that you are on your own if linking fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.");
+        console.warn('Note that you are on your own if linking fails or produces broken output, and you alone are responsible for any issues that arise, including but not limited to bricked consoles, data loss, or damage to the host computer. Proceeding at your own risk.');
     }
     console.debug('Resolved LINKER path:', linkerPath);
     return linkerPath;

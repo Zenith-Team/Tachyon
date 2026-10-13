@@ -61,6 +61,7 @@ const configFiles = dotenv.config({
     ],
     override: false,
     quiet: true,
+    fast: true,
 });
 const configFilesObj = configFiles.parsed;
 if (!configFilesObj) {
